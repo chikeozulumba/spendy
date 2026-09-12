@@ -4,6 +4,7 @@ import { cors } from "hono/cors";
 import { env } from "./env.js";
 import { statements } from "./routes/statements.js";
 import { transactions } from "./routes/transactions.js";
+import { insights } from "./routes/insights.js";
 
 const app = new Hono();
 
@@ -20,6 +21,7 @@ app.get("/health", (c) => c.json({ ok: true }));
 
 app.route("/statements", statements);
 app.route("/transactions", transactions);
+app.route("/insights", insights);
 
 serve({ fetch: app.fetch, port: env.port }, (info) => {
   console.log(`api listening on http://localhost:${info.port}`);

@@ -1,4 +1,10 @@
-import type { Insights, StatementDetail, StatementSummary, Transaction } from "./types";
+import type {
+  Insights,
+  SpendingOverview,
+  StatementDetail,
+  StatementSummary,
+  Transaction,
+} from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8787";
 
@@ -59,4 +65,7 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ category }),
     }),
+
+  getSpendingOverview: (getToken: GetToken) =>
+    request<SpendingOverview>(getToken, "/insights/spending-by-year"),
 };

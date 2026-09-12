@@ -3,7 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import StatusBadge from "../components/StatusBadge";
-import { Card } from "../components/ui/Card";
+import SpendingByCategoryChart from "../components/SpendingByCategoryChart";
+import { Card, Eyebrow } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 
 export default function StatementsListPage() {
@@ -14,8 +15,23 @@ export default function StatementsListPage() {
     refetchInterval: 5000,
   });
 
+  const overviewQuery = useQuery({
+    queryKey: ["spending-overview"],
+    queryFn: () => api.getSpendingOverview(getToken),
+  });
+
   return (
     <div>
+      {overviewQuery.data && (
+        <Card className="mb-5">
+          <Eyebrow>Spending by category, by year</Eyebrow>
+          <SpendingByCategoryChart
+            rows={overviewQuery.data.rows}
+            primaryCurrency={overviewQuery.data.primaryCurrency}
+          />
+        </Card>
+      )}
+
       <div className="mb-5 flex items-center justify-between">
         <h1 className="text-xl font-bold tracking-tight text-text-100">Your ledger</h1>
         <Link to="/upload">

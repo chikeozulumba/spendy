@@ -57,6 +57,18 @@ export interface Insights {
   topMerchants: TopMerchantRow[];
 }
 
+export interface SpendingByYearRow {
+  year: number;
+  category: string;
+  currency: string;
+  total: string;
+}
+
+export interface SpendingOverview {
+  rows: SpendingByYearRow[];
+  primaryCurrency: string;
+}
+
 export const CATEGORIES = [
   "Food & Groceries",
   "Transport",
