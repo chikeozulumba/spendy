@@ -1,12 +1,16 @@
+import { useMemo } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
+import { CheckCircle2, FileStack, Landmark, Wallet } from "lucide-react";
 import { api } from "../api";
-import StatusBadge from "../components/StatusBadge";
+import LedgerTable from "../components/LedgerTable";
 import SpendingByCategoryChart from "../components/SpendingByCategoryChart";
 import SpendingByBankChart from "../components/SpendingByBankChart";
 import { Card, Eyebrow } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
+import { StatCard } from "../components/ui/StatCard";
+import { formatCurrency } from "../lib/formatCurrency";
 
 export default function StatementsListPage() {
   const { getToken } = useAuth();
@@ -26,26 +30,85 @@ export default function StatementsListPage() {
     queryFn: () => api.getSpendingByBank(getToken),
   });
 
+  const stats = useMemo(() => {
+    const currency = overviewQuery.data?.primaryCurrency ?? "USD";
+
+    const totalSpent = (overviewQuery.data?.rows ?? [])
+      .filter((r) => r.currency === currency)
+      .reduce((sum, r) => sum + Number(r.total), 0);
+
+    const reconciled = (data ?? []).filter(
+      (s) => s.status === "done" && s.reconciliationOk !== null
+    );
+    const reconciliationRate =
+      reconciled.length === 0
+        ? null
+        : Math.round(
+            (reconciled.filter((s) => s.reconciliationOk).length / reconciled.length) * 100
+          );
+
+    const banks = new Set(
+      (bankOverviewQuery.data?.rows ?? [])
+        .map((r) => r.bankName)
+        .filter((name) => name !== "Unknown")
+    );
+
+    return {
+      totalSpent: formatCurrency(totalSpent, currency),
+      statementCount: data?.length ?? 0,
+      reconciliationRate: reconciliationRate === null ? "—" : `${reconciliationRate}%`,
+      bankCount: banks.size,
+    };
+  }, [data, overviewQuery.data, bankOverviewQuery.data]);
+
   return (
     <div>
-      {overviewQuery.data && (
-        <Card className="mb-5">
-          <Eyebrow>Spending by category, by year</Eyebrow>
-          <SpendingByCategoryChart
-            rows={overviewQuery.data.rows}
-            primaryCurrency={overviewQuery.data.primaryCurrency}
+      {data && data.length > 0 && (
+        <div className="mb-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard icon={Wallet} label="Total spent" value={stats.totalSpent} tone="moss" />
+          <StatCard
+            icon={FileStack}
+            label="Statements filed"
+            value={String(stats.statementCount)}
+            tone="neutral"
           />
-        </Card>
+          <StatCard
+            icon={CheckCircle2}
+            label="Reconciliation rate"
+            value={stats.reconciliationRate}
+            tone="moss"
+          />
+          <StatCard
+            icon={Landmark}
+            label="Banks tracked"
+            value={String(stats.bankCount)}
+            tone="gold"
+          />
+        </div>
       )}
 
-      {bankOverviewQuery.data && (
-        <Card className="mb-5">
-          <Eyebrow>Spending by bank</Eyebrow>
-          <SpendingByBankChart
-            rows={bankOverviewQuery.data.rows}
-            primaryCurrency={bankOverviewQuery.data.primaryCurrency}
-          />
-        </Card>
+      {(overviewQuery.data || bankOverviewQuery.data) && (
+        <div className="mb-5 grid gap-5 lg:grid-cols-3">
+          {overviewQuery.data && (
+            <Card className="p-4 lg:col-span-2">
+              <Eyebrow className="mb-1">Spending by category, by year</Eyebrow>
+              <SpendingByCategoryChart
+                rows={overviewQuery.data.rows}
+                primaryCurrency={overviewQuery.data.primaryCurrency}
+              />
+            </Card>
+          )}
+
+          {bankOverviewQuery.data && (
+            <Card className="p-4 lg:col-span-1">
+              <Eyebrow className="mb-1">Spending by bank</Eyebrow>
+              <SpendingByBankChart
+                rows={bankOverviewQuery.data.rows}
+                primaryCurrency={bankOverviewQuery.data.primaryCurrency}
+              />
+            </Card>
+          )}
+        </div>
       )}
 
       <div className="mb-5 flex items-center justify-between">
@@ -57,7 +120,7 @@ export default function StatementsListPage() {
 
       <Card className="p-0">
         {isLoading && <p className="p-5 text-text-400">Loading…</p>}
-        {error && (
+        {error && !data && (
           <p className="p-5 text-rust-400">{(error as Error).message}</p>
         )}
         {data && data.length === 0 && (
@@ -65,29 +128,7 @@ export default function StatementsListPage() {
             Nothing filed yet. Upload your first bank statement to start reconciling.
           </p>
         )}
-        {data?.map((s, i) => (
-          <Link
-            key={s.id}
-            to={`/statements/${s.id}`}
-            className={
-              "flex items-center justify-between px-5 py-3.5 text-text-100 transition-colors hover:bg-ink-850 " +
-              (i > 0 ? "border-t border-line" : "")
-            }
-          >
-            <span className="flex min-w-0 flex-col">
-              <span className="truncate font-mono text-sm">{s.originalFilename}</span>
-              {s.bankName && (
-                <span className="truncate text-xs text-text-600">{s.bankName}</span>
-              )}
-            </span>
-            <span className="flex shrink-0 items-center gap-3">
-              {s.reconciliationOk === false && (
-                <span className="text-xs text-rust-400">⚠ review</span>
-              )}
-              <StatusBadge status={s.status} />
-            </span>
-          </Link>
-        ))}
+        {data && data.length > 0 && <LedgerTable statements={data} />}
       </Card>
     </div>
   );

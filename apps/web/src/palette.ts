@@ -1,18 +1,17 @@
-// Categorical palette — same hue rotation and order as the dataviz skill's
-// validated reference set, but pulled down in saturation/lightness to sit in
-// the same muted "ledger ink" family as the rest of the UI (moss/rust/gold)
-// instead of the fully-saturated defaults, which read as candy-bright next to
-// a deliberately restrained dark surface. Identity is always additionally
+// Categorical palette — same hue rotation/order as before, deepened for a
+// light surface: on a dark card these hues could sit at a muted mid-tone and
+// still pop, but on a light-gray/white card they need more depth to read
+// clearly and avoid looking washed out. Identity is always additionally
 // direct-labeled, never carried by color alone.
 const DARK_CATEGORICAL = [
-  "#5b7f9e", // slate blue
-  "#c1704a", // terracotta
-  "#4f9179", // teal
-  "#b98a3a", // ochre
-  "#a26a8a", // mauve
-  "#6f8f5c", // moss
-  "#7c72a8", // indigo
-  "#b5544a", // brick
+  "#3a6e93", // slate blue
+  "#b15a34", // terracotta
+  "#2c7a63", // teal
+  "#8f6a1e", // ochre
+  "#8c4f72", // mauve
+  "#4c7a3c", // moss
+  "#5c55a0", // indigo
+  "#9c3f35", // brick
 ];
 
 export const CATEGORY_COLORS: Record<string, string> = {
@@ -27,26 +26,33 @@ export const CATEGORY_COLORS: Record<string, string> = {
   Income: DARK_CATEGORICAL[0],
   Transfers: DARK_CATEGORICAL[1],
   "Fees/Charges": DARK_CATEGORICAL[2],
-  Other: "#898781", // muted — not a real "identity", genuinely uncategorized
+  Other: "#83868c", // muted — not a real "identity", genuinely uncategorized
 };
 
 export function colorForCategory(category: string | null): string {
   return (category && CATEGORY_COLORS[category]) || CATEGORY_COLORS.Other;
 }
 
+// For series with no fixed/known label set (e.g. bank names, which are
+// whatever the LLM inferred) — cycles the same categorical hues by position
+// instead of by name.
+export function colorForIndex(index: number): string {
+  return DARK_CATEGORICAL[index % DARK_CATEGORICAL.length];
+}
+
 // Years are ordinal/chronological, not a qualitative set like categories, so
-// they get a single-hue sequential ramp (moss family, oldest → dimmest, most
-// recent → most vivid) rather than the categorical palette above — reads as
-// "further back in time" instead of arbitrary color-coding.
-const YEAR_SEQUENTIAL = ["#3f5c3a", "#527a4a", "#6f8f5c", "#8db179", "#a9cf96", "#c7e3b8"];
+// they get a single-hue sequential ramp (moss family, oldest → lightest/dimmest,
+// most recent → deepest/most vivid — "vivid" on a light surface means more
+// saturated and darker, the opposite direction from the old dark-mode ramp).
+const YEAR_SEQUENTIAL = ["#6a9c54", "#568a41", "#437a30", "#316b20", "#1f5c12", "#123d0a"];
 
 export function colorForYear(index: number): string {
   return YEAR_SEQUENTIAL[index % YEAR_SEQUENTIAL.length];
 }
 
-export const CHART_SURFACE = "#14171c";
-export const GRIDLINE = "#262b26";
-export const AXIS_INK = "#aca99e";
+export const CHART_SURFACE = "#fdfdfd";
+export const GRIDLINE = "#e4e7eb";
+export const AXIS_INK = "#6b7178";
 // Bookkeeping convention: spending reads in rust ("in the red"), money in reads in moss ("in the black").
-export const DEBIT_COLOR = "#e2896a";
-export const CREDIT_COLOR = "#93b584";
+export const DEBIT_COLOR = "#c23b2a";
+export const CREDIT_COLOR = "#2e7d4f";

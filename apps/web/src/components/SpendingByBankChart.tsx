@@ -1,8 +1,8 @@
 import { useMemo } from "react";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { Cell, Pie, PieChart } from "recharts";
 import type { SpendingByBankRow } from "../types";
-import { AXIS_INK, DEBIT_COLOR, GRIDLINE } from "../palette";
-import { formatCurrency, formatCurrencyCompact, estimateYAxisWidth } from "../lib/formatCurrency";
+import { colorForIndex } from "../palette";
+import { formatCurrency } from "../lib/formatCurrency";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "./ui/chart";
 
 export default function SpendingByBankChart({
@@ -32,30 +32,14 @@ export default function SpendingByBankChart({
     );
   }
 
-  // A single series, direct-labeled by the x-axis — no per-item color coding
-  // needed, so this just reuses the app's existing "money out" convention.
-  const config: ChartConfig = { total: { label: "Spent", color: DEBIT_COLOR } };
-  const maxValue = data[0]?.total ?? 0; // `data` is sorted descending above
+  const config: ChartConfig = Object.fromEntries(
+    data.map((d, i) => [d.bank, { label: d.bank, color: colorForIndex(i) }])
+  );
 
   return (
     <div>
-      <ChartContainer config={config} className="h-[300px] w-full">
-        <BarChart data={data} margin={{ left: 8, right: 16, top: 8, bottom: 24 }}>
-          <CartesianGrid stroke={GRIDLINE} vertical={false} />
-          <XAxis
-            dataKey="bank"
-            stroke={AXIS_INK}
-            tick={{ fontSize: 11 }}
-            interval={0}
-            angle={-30}
-            textAnchor="end"
-            height={60}
-          />
-          <YAxis
-            stroke={AXIS_INK}
-            tickFormatter={(v) => formatCurrencyCompact(v, primaryCurrency)}
-            width={estimateYAxisWidth(maxValue, primaryCurrency)}
-          />
+      <ChartContainer config={config} className="mx-auto h-[280px] w-full max-w-[280px]">
+        <PieChart>
           <ChartTooltip
             content={
               <ChartTooltipContent
@@ -63,8 +47,25 @@ export default function SpendingByBankChart({
               />
             }
           />
-          <Bar dataKey="total" name="Spent" fill={DEBIT_COLOR} radius={[3, 3, 0, 0]} />
-        </BarChart>
+          <Pie
+            data={data}
+            dataKey="total"
+            nameKey="bank"
+            // Explicit start/end angle: relying on Recharts' defaults here left
+            // a ~120° gap uncovered (the last slice's end point never met the
+            // first slice's start point) — this is the standard fix, forcing
+            // a full clockwise sweep from 12 o'clock.
+            startAngle={90}
+            endAngle={-270}
+            innerRadius={0}
+            outerRadius={110}
+            paddingAngle={2}
+          >
+            {data.map((d, i) => (
+              <Cell key={d.bank} fill={colorForIndex(i)} stroke="none" />
+            ))}
+          </Pie>
+        </PieChart>
       </ChartContainer>
 
       {excludedOtherCurrency && (

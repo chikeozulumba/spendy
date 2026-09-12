@@ -13,38 +13,45 @@
 @import "@fontsource/ibm-plex-mono/600.css";
 
 /*
-  Palette — "ledger at night". A dark ink surface with accents borrowed from real
-  bookkeeping convention: credits read in moss (in the black), debits read in rust
-  (in the red), pending states in gold. Hairlines are moss-tinted charcoal, like the
-  faint green rules on paper ledger stock.
+  Palette — light SaaS analytics dashboard (Shopify Polaris / Airwallex
+  territory): a tonal gray scale, not a single flat white — the page canvas,
+  card surfaces, and hover/input fields are each a distinct light gray step,
+  so depth comes from tone instead of borders alone. Bookkeeping convention
+  carries over from the previous dark build: credits read in moss (in the
+  black), debits read in rust (in the red), pending states in gold — all
+  deepened here so they hold up as text/icon color on a light surface instead
+  of a dark one.
+
+  Token names are unchanged from the dark build (ink-950/900/850/800,
+  text-100/400/600, moss/rust/gold-400/500/600, line/line-strong) — every
+  component still asks for "the card surface" or "the muted text color" by
+  the same name. Only the values moved; the role each token plays is the same.
 */
 @theme {
-  --color-ink-950: #0b0d10;
-  --color-ink-900: #14171c;
-  --color-ink-850: #1b1f24;
-  --color-ink-800: #232830;
+  --color-ink-950: #f1f2f4; /* page canvas */
+  --color-ink-900: #fdfdfd; /* card/panel surface */
+  --color-ink-850: #eef0f2; /* inputs, badges, hover fills, switch track */
+  --color-ink-800: #e4e7ea; /* dropdown item hover, subtle fills */
 
-  --color-line: #262b26;
-  --color-line-strong: #333a33;
+  --color-line: #e1e4e8;
+  --color-line-strong: #c7cdd3;
 
-  --color-paper: #ece7da;
+  --color-moss-600: #1d5a36;
+  --color-moss-500: #257044;
+  --color-moss-400: #2e7d4f;
+  --color-moss-300: #4c9668;
 
-  --color-moss-600: #5c7a52;
-  --color-moss-500: #7fa073;
-  --color-moss-400: #93b584;
-  --color-moss-300: #b7d0ac;
+  --color-rust-600: #8c2a1c;
+  --color-rust-500: #a83322;
+  --color-rust-400: #c23b2a;
 
-  --color-rust-600: #9c4c39;
-  --color-rust-500: #c1614a;
-  --color-rust-400: #e2896a;
+  --color-gold-600: #745007;
+  --color-gold-500: #8f6108;
+  --color-gold-400: #a6710a;
 
-  --color-gold-600: #8f6b24;
-  --color-gold-500: #c99a3c;
-  --color-gold-400: #e3b563;
-
-  --color-text-100: #e7e4da;
-  --color-text-400: #aca99e;
-  --color-text-600: #7a776d;
+  --color-text-100: #14171a;
+  --color-text-400: #6b7178;
+  --color-text-600: #9096a0;
 
   --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
@@ -56,7 +63,7 @@
   }
 
   html {
-    color-scheme: dark;
+    color-scheme: light;
   }
 
   body {

@@ -133,12 +133,12 @@ export default function StatementDetailPage() {
           )}
 
           <div className="grid gap-5 sm:grid-cols-2">
-            <Card>
-              <Eyebrow>Spending by category</Eyebrow>
+            <Card className="p-4">
+              <Eyebrow className="mb-1">Spending by category</Eyebrow>
               <CategoryBreakdownChart rows={insightsQuery.data.categoryBreakdown} currency={currency} />
             </Card>
-            <Card>
-              <Eyebrow>Spend over time</Eyebrow>
+            <Card className="p-4">
+              <Eyebrow className="mb-1">Spend over time</Eyebrow>
               <SpendOverTimeChart rows={insightsQuery.data.spendOverTime} currency={currency} />
             </Card>
           </div>

@@ -1,6 +1,5 @@
 import {
   CartesianGrid,
-  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -34,17 +33,16 @@ export default function SpendOverTimeChart({
 
   return (
     <ResponsiveContainer width="100%" height={280}>
-      <LineChart data={data} margin={{ left: 8, right: 16 }}>
+      <LineChart data={data} margin={{ left: 0, right: 8, top: 4, bottom: 0 }}>
         <CartesianGrid stroke={GRIDLINE} vertical={false} />
         <XAxis dataKey="date" stroke={AXIS_INK} tick={{ fontSize: 12 }} tickFormatter={formatDateShort} />
         <YAxis stroke={AXIS_INK} tickFormatter={(v) => formatCurrencyCompact(v, currency)} />
         <Tooltip
           formatter={(value: number) => formatCurrency(value, currency)}
           labelFormatter={formatDate}
-          contentStyle={{ background: "#0b0d10", border: "1px solid #262b26", borderRadius: 8 }}
-          labelStyle={{ color: "#e7e4da" }}
+          contentStyle={{ background: "#fdfdfd", border: "1px solid #e1e4e8", borderRadius: 8 }}
+          labelStyle={{ color: "#14171a" }}
         />
-        <Legend />
         <Line type="monotone" dataKey="debit" name="Spent" stroke={DEBIT_COLOR} strokeWidth={2} dot={false} />
         <Line type="monotone" dataKey="credit" name="Received" stroke={CREDIT_COLOR} strokeWidth={2} dot={false} />
       </LineChart>

@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { useMemo } from "react";
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 import type { SpendingByYearRow } from "../types";
 import { CATEGORIES } from "../types";
 import { colorForYear, GRIDLINE, AXIS_INK } from "../palette";
@@ -13,8 +13,6 @@ export default function SpendingByCategoryChart({
   rows: SpendingByYearRow[];
   primaryCurrency: string;
 }) {
-  const [hiddenYears, setHiddenYears] = useState<Set<number>>(new Set());
-
   const { data, years, excludedOtherCurrency, maxValue } = useMemo(() => {
     const inPrimary = rows.filter((r) => r.currency === primaryCurrency);
     const excludedOtherCurrency = inPrimary.length !== rows.length;
@@ -65,19 +63,10 @@ export default function SpendingByCategoryChart({
     years.map((year, i) => [String(year), { label: String(year), color: colorForYear(i) }])
   );
 
-  function toggleYear(year: number) {
-    setHiddenYears((prev) => {
-      const next = new Set(prev);
-      if (next.has(year)) next.delete(year);
-      else next.add(year);
-      return next;
-    });
-  }
-
   return (
     <div>
       <ChartContainer config={config} className="h-[300px] w-full">
-        <BarChart data={data} margin={{ left: 8, right: 16, top: 8, bottom: 24 }}>
+        <LineChart data={data} margin={{ left: 8, right: 8, top: 4, bottom: 16 }}>
           <CartesianGrid stroke={GRIDLINE} vertical={false} />
           <XAxis
             dataKey="category"
@@ -101,41 +90,19 @@ export default function SpendingByCategoryChart({
             }
           />
           {years.map((year, i) => (
-            <Bar
+            <Line
               key={year}
+              type="monotone"
               dataKey={String(year)}
               name={String(year)}
-              fill={colorForYear(i)}
-              radius={[3, 3, 0, 0]}
-              hide={hiddenYears.has(year)}
+              stroke={colorForYear(i)}
+              strokeWidth={2}
+              dot={{ r: 3 }}
+              activeDot={{ r: 5 }}
             />
           ))}
-        </BarChart>
+        </LineChart>
       </ChartContainer>
-
-      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
-        {years.map((year, i) => {
-          const isHidden = hiddenYears.has(year);
-          return (
-            <button
-              key={year}
-              type="button"
-              onClick={() => toggleYear(year)}
-              aria-pressed={!isHidden}
-              className="flex items-center gap-1.5 text-xs transition-opacity"
-              style={{ opacity: isHidden ? 0.4 : 1 }}
-            >
-              <span
-                className="h-2 w-2 shrink-0 rounded-full"
-                style={{ backgroundColor: colorForYear(i) }}
-              />
-              <span className={isHidden ? "text-text-600 line-through" : "text-text-400"}>
-                {year}
-              </span>
-            </button>
-          );
-        })}
-      </div>
 
       {excludedOtherCurrency && (
         <p className="mt-3 text-xs text-text-600">

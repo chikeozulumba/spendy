@@ -3,6 +3,7 @@ import { useAuth } from "@clerk/clerk-react";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import clsx from "clsx";
+import { UploadCloud } from "lucide-react";
 import { api } from "../api";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
@@ -65,7 +66,7 @@ export default function UploadPage() {
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             className="sr-only"
           />
-          <UploadIcon className="h-6 w-6 text-text-600" />
+          <UploadCloud className="h-6 w-6 text-text-600" strokeWidth={1.8} />
           {file ? (
             <span className="font-mono text-sm text-text-100">{file.name}</span>
           ) : (
@@ -102,25 +103,5 @@ export default function UploadPage() {
         )}
       </form>
     </Card>
-  );
-}
-
-function UploadIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className}>
-      <path
-        d="M12 15V4M12 4L8 8M12 4L16 8"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M4 15V17.5C4 18.8807 5.11929 20 6.5 20H17.5C18.8807 20 20 18.8807 20 17.5V15"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-    </svg>
   );
 }

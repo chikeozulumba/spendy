@@ -30,7 +30,7 @@ export default function CategoryBreakdownChart({
 
   return (
     <ResponsiveContainer width="100%" height={Math.max(200, data.length * 40)}>
-      <BarChart data={data} layout="vertical" margin={{ left: 16, right: 24 }}>
+      <BarChart data={data} layout="vertical" margin={{ left: 0, right: 8, top: 0, bottom: 0 }}>
         <CartesianGrid horizontal={false} stroke={GRIDLINE} />
         <XAxis
           type="number"
@@ -40,8 +40,8 @@ export default function CategoryBreakdownChart({
         <YAxis type="category" dataKey="category" stroke={AXIS_INK} width={130} />
         <Tooltip
           formatter={(value: number) => [formatCurrency(value, currency), "Spent"]}
-          contentStyle={{ background: "#0b0d10", border: "1px solid #262b26", borderRadius: 8 }}
-          labelStyle={{ color: "#e7e4da" }}
+          contentStyle={{ background: "#fdfdfd", border: "1px solid #e1e4e8", borderRadius: 8 }}
+          labelStyle={{ color: "#14171a" }}
         />
         <Bar dataKey="total" radius={[0, 4, 4, 0]} maxBarSize={28}>
           {data.map((row) => (
