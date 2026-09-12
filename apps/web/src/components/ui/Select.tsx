@@ -32,7 +32,7 @@ export function Select({
         <SelectPrimitive.Content
           position="popper"
           sideOffset={4}
-          className="z-50 overflow-hidden rounded-lg border border-line bg-ink-850 shadow-xl shadow-black/40"
+          className="z-50 overflow-hidden rounded-lg border border-line-strong bg-ink-850"
         >
           <SelectPrimitive.Viewport className="p-1">{children}</SelectPrimitive.Viewport>
         </SelectPrimitive.Content>

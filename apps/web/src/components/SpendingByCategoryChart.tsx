@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
+import { useId, useMemo } from "react";
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import type { SpendingByYearRow } from "../types";
 import { CATEGORIES } from "../types";
 import { colorForYear, GRIDLINE, AXIS_INK } from "../palette";
@@ -13,6 +13,8 @@ export default function SpendingByCategoryChart({
   rows: SpendingByYearRow[];
   primaryCurrency: string;
 }) {
+  const gradientUid = useId();
+
   const { data, years, excludedOtherCurrency, maxValue } = useMemo(() => {
     const inPrimary = rows.filter((r) => r.currency === primaryCurrency);
     const excludedOtherCurrency = inPrimary.length !== rows.length;
@@ -66,7 +68,15 @@ export default function SpendingByCategoryChart({
   return (
     <div>
       <ChartContainer config={config} className="h-[300px] w-full">
-        <LineChart data={data} margin={{ left: 8, right: 8, top: 4, bottom: 16 }}>
+        <AreaChart data={data} margin={{ left: 8, right: 8, top: 4, bottom: 16 }}>
+          <defs>
+            {years.map((year, i) => (
+              <linearGradient key={year} id={`${gradientUid}-${year}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={colorForYear(i)} stopOpacity={0.5} />
+                <stop offset="95%" stopColor={colorForYear(i)} stopOpacity={0.05} />
+              </linearGradient>
+            ))}
+          </defs>
           <CartesianGrid stroke={GRIDLINE} vertical={false} />
           <XAxis
             dataKey="category"
@@ -89,19 +99,21 @@ export default function SpendingByCategoryChart({
               />
             }
           />
+          {/* Not stacked: each year is an independent trend to compare, not an
+              additive part of one total, so stacking them would sum unrelated
+              years together and misrepresent the data. */}
           {years.map((year, i) => (
-            <Line
+            <Area
               key={year}
-              type="monotone"
+              type="natural"
               dataKey={String(year)}
               name={String(year)}
               stroke={colorForYear(i)}
+              fill={`url(#${gradientUid}-${year})`}
               strokeWidth={2}
-              dot={{ r: 3 }}
-              activeDot={{ r: 5 }}
             />
           ))}
-        </LineChart>
+        </AreaChart>
       </ChartContainer>
 
       {excludedOtherCurrency && (

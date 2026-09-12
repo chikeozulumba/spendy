@@ -9,7 +9,7 @@ import { Button } from "./components/ui/Button";
 export default function App() {
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="border-b border-line px-6 py-4">
+      <header className="border-b border-line bg-white px-6 py-4">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between">
           <Link to="/" className="transition-opacity hover:opacity-80">
             <Logo />

@@ -16,12 +16,6 @@ import { formatDate } from "../lib/formatDate";
 const columnHelper = createColumnHelper<StatementSummary>();
 
 const columns = [
-  columnHelper.accessor("originalFilename", {
-    header: "Filename",
-    cell: (info) => (
-      <span className="whitespace-nowrap font-mono text-text-100">{info.getValue()}</span>
-    ),
-  }),
   columnHelper.accessor((row) => row.bankName ?? "", {
     id: "bank",
     header: "Bank",
