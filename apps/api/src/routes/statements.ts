@@ -82,7 +82,7 @@ statements.get("/", async (c) => {
   const rows = await sql`
     SELECT id, original_filename, status, opening_balance, closing_balance,
            statement_period_start, statement_period_end, reconciliation_ok,
-           currency, created_at
+           currency, bank_name, created_at
     FROM statements WHERE user_id = ${userId} ORDER BY created_at DESC
   `;
   return c.json(rows);
@@ -94,7 +94,7 @@ statements.get("/:id", async (c) => {
   const [row] = await sql`
     SELECT id, original_filename, status, failure_reason, opening_balance, closing_balance,
            statement_period_start, statement_period_end, reconciliation_ok,
-           reconciliation_note, summary, currency, created_at
+           reconciliation_note, summary, currency, bank_name, created_at
     FROM statements WHERE id = ${id} AND user_id = ${userId}
   `;
   if (!row) return c.json({ error: "Not found" }, 404);

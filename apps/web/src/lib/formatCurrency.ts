@@ -34,3 +34,18 @@ export function formatCurrencyCompact(amount: number | string, currency: string)
   const value = typeof amount === "string" ? Number(amount) : amount;
   return formatterFor(currency, 0).format(value);
 }
+
+/**
+ * A currency-axis tick's width varies a lot by currency: some render a
+ * single-character symbol ("$450"), others fall back to the 3-letter ISO
+ * code when the viewer's locale has no narrower symbol for it ("NGN
+ * 2,000,000") — nearly 3x longer. Recharts' own auto-width for YAxis doesn't
+ * reliably account for a custom tickFormatter's actual output width, so this
+ * measures the real longest label for this chart's own data/currency instead
+ * of trusting a fixed guess (which is what clipped NGN/other long-code
+ * currencies' labels in the first place).
+ */
+export function estimateYAxisWidth(maxValue: number, currency: string): number {
+  const longest = formatCurrencyCompact(maxValue, currency).length;
+  return Math.max(50, longest * 7.5 + 16);
+}

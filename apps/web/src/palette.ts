@@ -34,6 +34,16 @@ export function colorForCategory(category: string | null): string {
   return (category && CATEGORY_COLORS[category]) || CATEGORY_COLORS.Other;
 }
 
+// Years are ordinal/chronological, not a qualitative set like categories, so
+// they get a single-hue sequential ramp (moss family, oldest → dimmest, most
+// recent → most vivid) rather than the categorical palette above — reads as
+// "further back in time" instead of arbitrary color-coding.
+const YEAR_SEQUENTIAL = ["#3f5c3a", "#527a4a", "#6f8f5c", "#8db179", "#a9cf96", "#c7e3b8"];
+
+export function colorForYear(index: number): string {
+  return YEAR_SEQUENTIAL[index % YEAR_SEQUENTIAL.length];
+}
+
 export const CHART_SURFACE = "#14171c";
 export const GRIDLINE = "#262b26";
 export const AXIS_INK = "#aca99e";

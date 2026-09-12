@@ -85,9 +85,16 @@ async def process(req: ProcessRequest, x_internal_token: str | None = Header(def
         period_start = extraction.get("period_start")
         period_end = extraction.get("period_end")
         currency = _as_currency_or_none(extraction.get("currency"))
+        bank_name = _as_bank_name_or_none(extraction.get("bank_name"))
 
         await db.update_statement_extraction(
-            statement_id, opening_balance, closing_balance, period_start, period_end, currency
+            statement_id,
+            opening_balance,
+            closing_balance,
+            period_start,
+            period_end,
+            currency,
+            bank_name,
         )
 
         ok, note = check_reconciliation(parsed_transactions, opening_balance, closing_balance)
@@ -139,6 +146,12 @@ def _as_currency_or_none(value) -> str | None:
     writing something bogus."""
     if isinstance(value, str) and len(value) == 3 and value.isalpha() and value.isascii():
         return value.upper()
+    return None
+
+
+def _as_bank_name_or_none(value) -> str | None:
+    if isinstance(value, str) and (name := value.strip()):
+        return name[:200]  # matches the practical width a bank name should ever need
     return None
 
 

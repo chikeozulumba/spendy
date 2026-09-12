@@ -52,41 +52,34 @@ async def update_statement_extraction(
     period_start,
     period_end,
     currency: str | None = None,
+    bank_name: str | None = None,
 ) -> None:
     period_start = _to_date(period_start)
     period_end = _to_date(period_end)
     pool = await get_pool()
-    if currency is None:
-        await pool.execute(
-            """
-            UPDATE statements
-            SET opening_balance = $2, closing_balance = $3,
-                statement_period_start = $4, statement_period_end = $5,
-                updated_at = now()
-            WHERE id = $1
-            """,
-            statement_id,
-            opening_balance,
-            closing_balance,
-            period_start,
-            period_end,
-        )
-    else:
-        await pool.execute(
-            """
-            UPDATE statements
-            SET opening_balance = $2, closing_balance = $3,
-                statement_period_start = $4, statement_period_end = $5,
-                currency = $6, updated_at = now()
-            WHERE id = $1
-            """,
-            statement_id,
-            opening_balance,
-            closing_balance,
-            period_start,
-            period_end,
-            currency,
-        )
+    # currency/bank_name are inferred with lower confidence than the rest of
+    # this row (the LLM may legitimately not identify either) — COALESCE onto
+    # the existing value rather than branching per combination of "did we get
+    # this field or not", which stops scaling the moment there's more than one
+    # such optional field.
+    await pool.execute(
+        """
+        UPDATE statements
+        SET opening_balance = $2, closing_balance = $3,
+            statement_period_start = $4, statement_period_end = $5,
+            currency = COALESCE($6, currency),
+            bank_name = COALESCE($7, bank_name),
+            updated_at = now()
+        WHERE id = $1
+        """,
+        statement_id,
+        opening_balance,
+        closing_balance,
+        period_start,
+        period_end,
+        currency,
+        bank_name,
+    )
 
 
 async def update_statement_reconciliation(statement_id: str, ok: bool, note: str | None) -> None:

@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import type { SpendingByYearRow } from "../types";
 import { CATEGORIES } from "../types";
-import { colorForCategory, GRIDLINE, AXIS_INK } from "../palette";
-import { formatCurrency, formatCurrencyCompact } from "../lib/formatCurrency";
+import { colorForYear, GRIDLINE, AXIS_INK } from "../palette";
+import { formatCurrency, formatCurrencyCompact, estimateYAxisWidth } from "../lib/formatCurrency";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "./ui/chart";
 
 export default function SpendingByCategoryChart({
@@ -13,39 +13,43 @@ export default function SpendingByCategoryChart({
   rows: SpendingByYearRow[];
   primaryCurrency: string;
 }) {
-  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const [hiddenYears, setHiddenYears] = useState<Set<number>>(new Set());
 
-  const { data, categories, excludedOtherCurrency } = useMemo(() => {
+  const { data, years, excludedOtherCurrency, maxValue } = useMemo(() => {
     const inPrimary = rows.filter((r) => r.currency === primaryCurrency);
     const excludedOtherCurrency = inPrimary.length !== rows.length;
 
     if (inPrimary.length === 0) {
-      return { data: [], categories: [] as string[], excludedOtherCurrency };
+      return { data: [], years: [] as number[], excludedOtherCurrency, maxValue: 0 };
     }
 
-    const years = inPrimary.map((r) => r.year);
-    const minYear = Math.min(...years);
-    const maxYear = Math.max(...years);
+    const years = Array.from(new Set(inPrimary.map((r) => r.year))).sort((a, b) => a - b);
 
     const present = new Set(inPrimary.map((r) => r.category));
     // Stable, familiar ordering (matches the rest of the app) rather than
     // whatever order the DB happened to return rows in.
     const categories = CATEGORIES.filter((c) => present.has(c));
 
-    const byYear = new Map<number, Record<string, number>>();
-    for (let y = minYear; y <= maxYear; y++) {
-      byYear.set(y, Object.fromEntries(categories.map((c) => [c, 0])));
+    const byCategory = new Map<string, Record<string, number>>();
+    for (const category of categories) {
+      byCategory.set(
+        category,
+        Object.fromEntries(years.map((y) => [String(y), 0]))
+      );
     }
     for (const row of inPrimary) {
-      const entry = byYear.get(row.year);
-      if (entry) entry[row.category] = Number(row.total);
+      const entry = byCategory.get(row.category);
+      if (entry) entry[String(row.year)] = Number(row.total);
     }
 
-    const data = Array.from(byYear.entries())
-      .sort(([a], [b]) => a - b)
-      .map(([year, totals]) => ({ year, ...totals }));
+    const data = categories.map((category) => ({
+      category,
+      ...byCategory.get(category)!,
+    }));
 
-    return { data, categories, excludedOtherCurrency };
+    const maxValue = Math.max(...inPrimary.map((r) => Number(r.total)));
+
+    return { data, years, excludedOtherCurrency, maxValue };
   }, [rows, primaryCurrency]);
 
   if (data.length === 0) {
@@ -58,28 +62,36 @@ export default function SpendingByCategoryChart({
   }
 
   const config: ChartConfig = Object.fromEntries(
-    categories.map((c) => [c, { label: c, color: colorForCategory(c) }])
+    years.map((year, i) => [String(year), { label: String(year), color: colorForYear(i) }])
   );
 
-  function toggle(category: string) {
-    setHidden((prev) => {
+  function toggleYear(year: number) {
+    setHiddenYears((prev) => {
       const next = new Set(prev);
-      if (next.has(category)) next.delete(category);
-      else next.add(category);
+      if (next.has(year)) next.delete(year);
+      else next.add(year);
       return next;
     });
   }
 
   return (
     <div>
-      <ChartContainer config={config} className="h-[280px] w-full">
-        <LineChart data={data} margin={{ left: 8, right: 16, top: 8 }}>
+      <ChartContainer config={config} className="h-[300px] w-full">
+        <BarChart data={data} margin={{ left: 8, right: 16, top: 8, bottom: 24 }}>
           <CartesianGrid stroke={GRIDLINE} vertical={false} />
-          <XAxis dataKey="year" stroke={AXIS_INK} tick={{ fontSize: 12 }} />
+          <XAxis
+            dataKey="category"
+            stroke={AXIS_INK}
+            tick={{ fontSize: 11 }}
+            interval={0}
+            angle={-30}
+            textAnchor="end"
+            height={60}
+          />
           <YAxis
             stroke={AXIS_INK}
             tickFormatter={(v) => formatCurrencyCompact(v, primaryCurrency)}
-            width={64}
+            width={estimateYAxisWidth(maxValue, primaryCurrency)}
           />
           <ChartTooltip
             content={
@@ -88,39 +100,37 @@ export default function SpendingByCategoryChart({
               />
             }
           />
-          {categories.map((category) => (
-            <Line
-              key={category}
-              type="monotone"
-              dataKey={category}
-              name={category}
-              stroke={colorForCategory(category)}
-              strokeWidth={2}
-              dot={{ r: 3 }}
-              hide={hidden.has(category)}
+          {years.map((year, i) => (
+            <Bar
+              key={year}
+              dataKey={String(year)}
+              name={String(year)}
+              fill={colorForYear(i)}
+              radius={[3, 3, 0, 0]}
+              hide={hiddenYears.has(year)}
             />
           ))}
-        </LineChart>
+        </BarChart>
       </ChartContainer>
 
-      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
-        {categories.map((category) => {
-          const isHidden = hidden.has(category);
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
+        {years.map((year, i) => {
+          const isHidden = hiddenYears.has(year);
           return (
             <button
-              key={category}
+              key={year}
               type="button"
-              onClick={() => toggle(category)}
+              onClick={() => toggleYear(year)}
               aria-pressed={!isHidden}
               className="flex items-center gap-1.5 text-xs transition-opacity"
               style={{ opacity: isHidden ? 0.4 : 1 }}
             >
               <span
                 className="h-2 w-2 shrink-0 rounded-full"
-                style={{ backgroundColor: colorForCategory(category) }}
+                style={{ backgroundColor: colorForYear(i) }}
               />
               <span className={isHidden ? "text-text-600 line-through" : "text-text-400"}>
-                {category}
+                {year}
               </span>
             </button>
           );

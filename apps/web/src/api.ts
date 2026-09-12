@@ -1,5 +1,6 @@
 import type {
   Insights,
+  SpendingByBankOverview,
   SpendingOverview,
   StatementDetail,
   StatementSummary,
@@ -68,4 +69,7 @@ export const api = {
 
   getSpendingOverview: (getToken: GetToken) =>
     request<SpendingOverview>(getToken, "/insights/spending-by-year"),
+
+  getSpendingByBank: (getToken: GetToken) =>
+    request<SpendingByBankOverview>(getToken, "/insights/spending-by-bank"),
 };

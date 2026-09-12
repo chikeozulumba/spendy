@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { api } from "../api";
 import StatusBadge from "../components/StatusBadge";
 import SpendingByCategoryChart from "../components/SpendingByCategoryChart";
+import SpendingByBankChart from "../components/SpendingByBankChart";
 import { Card, Eyebrow } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 
@@ -20,6 +21,11 @@ export default function StatementsListPage() {
     queryFn: () => api.getSpendingOverview(getToken),
   });
 
+  const bankOverviewQuery = useQuery({
+    queryKey: ["spending-by-bank"],
+    queryFn: () => api.getSpendingByBank(getToken),
+  });
+
   return (
     <div>
       {overviewQuery.data && (
@@ -28,6 +34,16 @@ export default function StatementsListPage() {
           <SpendingByCategoryChart
             rows={overviewQuery.data.rows}
             primaryCurrency={overviewQuery.data.primaryCurrency}
+          />
+        </Card>
+      )}
+
+      {bankOverviewQuery.data && (
+        <Card className="mb-5">
+          <Eyebrow>Spending by bank</Eyebrow>
+          <SpendingByBankChart
+            rows={bankOverviewQuery.data.rows}
+            primaryCurrency={bankOverviewQuery.data.primaryCurrency}
           />
         </Card>
       )}
@@ -58,7 +74,12 @@ export default function StatementsListPage() {
               (i > 0 ? "border-t border-line" : "")
             }
           >
-            <span className="truncate font-mono text-sm">{s.originalFilename}</span>
+            <span className="flex min-w-0 flex-col">
+              <span className="truncate font-mono text-sm">{s.originalFilename}</span>
+              {s.bankName && (
+                <span className="truncate text-xs text-text-600">{s.bankName}</span>
+              )}
+            </span>
             <span className="flex shrink-0 items-center gap-3">
               {s.reconciliationOk === false && (
                 <span className="text-xs text-rust-400">⚠ review</span>

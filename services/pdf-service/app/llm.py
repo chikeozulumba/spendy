@@ -84,6 +84,7 @@ shape, with no commentary and no markdown code fences:
 
 {
   "currency": "<ISO 4217 code, e.g. USD/EUR/GBP, or null>",
+  "bank_name": "<the bank/financial institution's name, or null>",
   "opening_balance": <number or null>,
   "closing_balance": <number or null>,
   "period_start": "<YYYY-MM-DD or null>",
@@ -98,10 +99,21 @@ Rules:
 - Preserve every transaction across page breaks; do not drop or duplicate rows that straddle a page marker.
 - If a balance or date isn't identifiable from the text, use null rather than guessing.
 - Do not invent transactions that aren't present in the text.
-- Infer "currency" from symbols (e.g. "$", "€", "£"), an explicit code, or other
-  wording on the statement (e.g. a bank name/address implying a country's
-  currency). Use null only if truly nothing on the statement suggests one —
-  don't default to USD just because it's common.
+- Infer "currency" from symbols (e.g. "$", "€", "£", "₦"), an explicit code
+  (e.g. "NGN"), a currency name in words (e.g. "Naira"), or other wording on
+  the statement (e.g. a bank name/address implying a country's currency).
+  Use null only if truly nothing on the statement suggests one — don't
+  default to USD just because it's common.
+- Some statements (e.g. many Nigerian bank exports) print amounts with a
+  bare "N" instead of "₦" (a PDF font/encoding limitation, not a different
+  currency) — e.g. "N15,000.00". Recognize this as Naira ("NGN") using
+  context (bank name/address, "Naira"/"NGN" appearing elsewhere on the
+  statement), not as part of the number itself.
+- Infer "bank_name" from the statement's letterhead/logo text, header, or
+  footer (e.g. "Chase", "Bank of America", "Access Bank"). Use the bank's own
+  name as it appears, not a marketing tagline; use null if it truly isn't
+  identifiable rather than guessing from context like currency or address
+  alone.
 """
 
 

@@ -10,6 +10,7 @@ export interface StatementSummary {
   statementPeriodEnd: string | null;
   reconciliationOk: boolean | null;
   currency: string;
+  bankName: string | null;
   createdAt: string;
 }
 
@@ -66,6 +67,17 @@ export interface SpendingByYearRow {
 
 export interface SpendingOverview {
   rows: SpendingByYearRow[];
+  primaryCurrency: string;
+}
+
+export interface SpendingByBankRow {
+  bankName: string;
+  currency: string;
+  total: string;
+}
+
+export interface SpendingByBankOverview {
+  rows: SpendingByBankRow[];
   primaryCurrency: string;
 }
 

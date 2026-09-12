@@ -66,6 +66,9 @@ export default function StatementDetailPage() {
           <h1 className="truncate font-mono text-lg font-semibold text-text-100">
             {statement.originalFilename}
           </h1>
+          {statement.bankName && (
+            <p className="mt-0.5 truncate text-sm text-text-400">{statement.bankName}</p>
+          )}
           {statement.statementPeriodStart && statement.statementPeriodEnd && (
             <p className="mt-1 text-sm text-text-400">
               {formatDate(statement.statementPeriodStart)} – {formatDate(statement.statementPeriodEnd)}
