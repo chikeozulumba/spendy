@@ -1,0 +1,25 @@
+function required(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`Missing required env var: ${name}`);
+  return value;
+}
+
+export const env = {
+  port: Number(process.env.PORT ?? 8787),
+  databaseUrl: required("DATABASE_URL"),
+  internalServiceToken: required("INTERNAL_SERVICE_TOKEN"),
+  storageEncryptionKey: required("STORAGE_ENCRYPTION_KEY"),
+
+  storageEndpoint: required("STORAGE_ENDPOINT"),
+  storageRegion: process.env.STORAGE_REGION ?? "auto",
+  storageBucket: required("STORAGE_BUCKET"),
+  storageAccessKeyId: required("STORAGE_ACCESS_KEY_ID"),
+  storageSecretAccessKey: required("STORAGE_SECRET_ACCESS_KEY"),
+  storageForcePathStyle: (process.env.STORAGE_FORCE_PATH_STYLE ?? "true") === "true",
+
+  clerkSecretKey: required("CLERK_SECRET_KEY"),
+  clerkPublishableKey: process.env.CLERK_PUBLISHABLE_KEY ?? "",
+
+  pdfServiceUrl: required("PDF_SERVICE_URL"),
+  pdfServiceTimeoutMs: Number(process.env.PDF_SERVICE_TIMEOUT_MS ?? 55000),
+};

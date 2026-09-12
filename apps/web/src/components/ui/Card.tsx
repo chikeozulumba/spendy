@@ -1,0 +1,27 @@
+import clsx from "clsx";
+import type { HTMLAttributes } from "react";
+
+export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      className={clsx(
+        "rounded-xl border border-line bg-ink-900 p-5",
+        className
+      )}
+      {...props}
+    />
+  );
+}
+
+/** Small tracked-out uppercase label used to head a section of a card — a real structural marker, not decoration. */
+export function Eyebrow({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) {
+  return (
+    <h3
+      className={clsx(
+        "mb-3 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-text-400",
+        className
+      )}
+      {...props}
+    />
+  );
+}

@@ -1,0 +1,107 @@
+@import "tailwindcss";
+
+/* Manrope — display & body face. Weights: 400/500 body, 600/700 nav & labels, 800 headings/brand. */
+@import "@fontsource/manrope/400.css";
+@import "@fontsource/manrope/500.css";
+@import "@fontsource/manrope/600.css";
+@import "@fontsource/manrope/700.css";
+@import "@fontsource/manrope/800.css";
+
+/* IBM Plex Mono — utility face for figures: amounts, dates, statement filenames, stamp copy. */
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+@import "@fontsource/ibm-plex-mono/600.css";
+
+/*
+  Palette — "ledger at night". A dark ink surface with accents borrowed from real
+  bookkeeping convention: credits read in moss (in the black), debits read in rust
+  (in the red), pending states in gold. Hairlines are moss-tinted charcoal, like the
+  faint green rules on paper ledger stock.
+*/
+@theme {
+  --color-ink-950: #0b0d10;
+  --color-ink-900: #14171c;
+  --color-ink-850: #1b1f24;
+  --color-ink-800: #232830;
+
+  --color-line: #262b26;
+  --color-line-strong: #333a33;
+
+  --color-paper: #ece7da;
+
+  --color-moss-600: #5c7a52;
+  --color-moss-500: #7fa073;
+  --color-moss-400: #93b584;
+  --color-moss-300: #b7d0ac;
+
+  --color-rust-600: #9c4c39;
+  --color-rust-500: #c1614a;
+  --color-rust-400: #e2896a;
+
+  --color-gold-600: #8f6b24;
+  --color-gold-500: #c99a3c;
+  --color-gold-400: #e3b563;
+
+  --color-text-100: #e7e4da;
+  --color-text-400: #aca99e;
+  --color-text-600: #7a776d;
+
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-line);
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-ink-950);
+    color: var(--color-text-100);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background: var(--color-moss-600);
+    color: var(--color-ink-950);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-moss-400);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer utilities {
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@keyframes progress-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(150%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
