@@ -164,4 +164,9 @@ export const api = {
     });
     return request<PeriodComparison>(getToken, `/insights/period-comparison?${params}`);
   },
+
+  createTelegramLinkToken: (getToken: GetToken) =>
+    request<{ token: string; expiresInMinutes: number }>(getToken, "/telegram/link-token", {
+      method: "POST",
+    }),
 };

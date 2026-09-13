@@ -6,6 +6,7 @@ import StatementsListPage from "./pages/StatementsListPage";
 import StatementDetailPage from "./pages/StatementDetailPage";
 import BudgetsPage from "./pages/BudgetsPage";
 import ComparePage from "./pages/ComparePage";
+import TelegramLinkPage from "./pages/TelegramLinkPage";
 import Logo from "./components/Logo";
 import { Button } from "./components/ui/Button";
 import { UploadModal } from "./components/UploadModal";
@@ -14,6 +15,7 @@ import { UploadModalProvider, useUploadModal } from "./context/UploadModalContex
 const NAV_LINKS = [
   { to: "/budgets", label: "Budgets" },
   { to: "/compare", label: "Compare" },
+  { to: "/telegram", label: "Telegram" },
 ];
 
 export default function App() {
@@ -92,6 +94,7 @@ function AppShell() {
             <Route path="/statements/:id" element={<StatementDetailPage />} />
             <Route path="/budgets" element={<BudgetsPage />} />
             <Route path="/compare" element={<ComparePage />} />
+            <Route path="/telegram" element={<TelegramLinkPage />} />
           </Routes>
           <UploadModal />
         </SignedIn>
