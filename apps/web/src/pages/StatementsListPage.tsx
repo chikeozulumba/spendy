@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { useQuery } from "@tanstack/react-query";
-import { CheckCircle2, FileStack, Landmark, Wallet } from "lucide-react";
+import { CheckCircle2, FileStack, HandCoins, Wallet } from "lucide-react";
 import { api } from "../api";
 import LedgerTable from "../components/LedgerTable";
 import SpendingByCategoryChart from "../components/SpendingByCategoryChart";
@@ -48,6 +48,12 @@ export default function StatementsListPage() {
     enabled: !!data && data.length > 0,
   });
 
+  const loansQuery = useQuery({
+    queryKey: ["loans"],
+    queryFn: () => api.getLoans(getToken),
+    enabled: !!data && data.length > 0,
+  });
+
   const stats = useMemo(() => {
     const currency = overviewQuery.data?.primaryCurrency ?? "USD";
 
@@ -65,19 +71,17 @@ export default function StatementsListPage() {
             (reconciled.filter((s) => s.reconciliationOk).length / reconciled.length) * 100
           );
 
-    const banks = new Set(
-      (bankOverviewQuery.data?.rows ?? [])
-        .map((r) => r.bankName)
-        .filter((name) => name !== "Unknown")
-    );
+    const expectedRepayment = (loansQuery.data ?? [])
+      .filter((loan) => loan.status === "outstanding" || loan.status === "overdue")
+      .reduce((sum, loan) => sum + Number(loan.amount), 0);
 
     return {
       totalSpent: formatCurrency(totalSpent, currency),
       statementCount: data?.length ?? 0,
       reconciliationRate: reconciliationRate === null ? "—" : `${reconciliationRate}%`,
-      bankCount: banks.size,
+      expectedRepayment: formatCurrency(expectedRepayment, currency),
     };
-  }, [data, overviewQuery.data, bankOverviewQuery.data]);
+  }, [data, overviewQuery.data, loansQuery.data]);
 
   // All-time per-category totals (summed across years) for the "Spending by
   // category" bar chart — derived from the same by-year/category rows the
@@ -135,9 +139,9 @@ export default function StatementsListPage() {
           tone="moss"
         />
         <StatCard
-          icon={Landmark}
-          label="Banks tracked"
-          value={String(stats.bankCount)}
+          icon={HandCoins}
+          label="Expected repayment"
+          value={stats.expectedRepayment}
           tone="gold"
         />
       </div>

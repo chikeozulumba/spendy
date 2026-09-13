@@ -31,6 +31,44 @@ export interface Transaction {
   isUserOverridden: boolean;
 }
 
+export type TransactionSource = "bank_statement" | "telegram";
+
+export interface AllTransactionRow {
+  id: string;
+  statementId: string | null;
+  date: string;
+  description: string;
+  amount: string;
+  direction: "debit" | "credit";
+  category: string | null;
+  categoryConfidence: string | null;
+  isUserOverridden: boolean;
+  source: TransactionSource;
+  currency: string;
+  bankName: string | null;
+  originalFilename: string | null;
+}
+
+export interface AllTransactions {
+  rows: AllTransactionRow[];
+  primaryCurrency: string;
+}
+
+export type LoanStatus = "outstanding" | "repaid" | "overdue" | "written_off";
+
+export interface LoanRow {
+  id: string;
+  transactionId: string;
+  counterparty: string | null;
+  amount: string;
+  expectedRepaymentDate: string | null;
+  status: LoanStatus;
+  notes: string | null;
+  createdAt: string;
+  description: string;
+  transactionDate: string;
+}
+
 export interface CategoryBreakdownRow {
   category: string | null;
   total: string;

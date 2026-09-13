@@ -23,3 +23,13 @@ telegram.post("/link-token", async (c) => {
 
   return c.json({ token, expiresInMinutes: TOKEN_TTL_MINUTES }, 201);
 });
+
+// Lets the web app know whether to show Telegram-linked features (the
+// documents list on TelegramLinkPage) without exposing the chat id itself.
+telegram.get("/status", async (c) => {
+  const userId = c.get("userId");
+  const [user] = await sql<{ telegramChatId: string | null }[]>`
+    SELECT telegram_chat_id FROM users WHERE id = ${userId}
+  `;
+  return c.json({ linked: !!user?.telegramChatId });
+});

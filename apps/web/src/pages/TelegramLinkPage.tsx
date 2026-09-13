@@ -1,10 +1,20 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Check, Copy, MessageCircle, Send } from "lucide-react";
 import { api } from "../api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
+import { TableSkeleton } from "../components/skeletons/TableSkeleton";
+import { formatCurrency } from "../lib/formatCurrency";
+import { formatDate } from "../lib/formatDate";
+
+const DOCUMENT_COLUMNS = [
+  { header: "Date", width: "35%" },
+  { header: "Description", width: "70%" },
+  { header: "Category", width: "45%" },
+  { header: "Amount", width: "30%" },
+];
 
 const BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string | undefined;
 
@@ -25,6 +35,18 @@ export default function TelegramLinkPage() {
   const [copied, setCopied] = useState(false);
   const secondsLeft = useCountdown(expiresAt);
   const expired = secondsLeft === 0;
+
+  const statusQuery = useQuery({
+    queryKey: ["telegram-status"],
+    queryFn: () => api.getTelegramStatus(getToken),
+  });
+  const linked = statusQuery.data?.linked ?? false;
+
+  const documentsQuery = useQuery({
+    queryKey: ["all-transactions", "telegram"],
+    queryFn: () => api.getAllTransactions(getToken, "telegram"),
+    enabled: linked,
+  });
 
   const generate = useMutation({
     mutationFn: () => api.createTelegramLinkToken(getToken),
@@ -123,6 +145,57 @@ export default function TelegramLinkPage() {
           )}
         </CardContent>
       </Card>
+
+      {linked && (
+        <Card className="p-0">
+          <CardHeader className="mb-0 border-b-0 px-5 pt-5 pb-4">
+            <CardTitle>Documents you've sent</CardTitle>
+            <CardDescription>Everything logged via Telegram, newest first.</CardDescription>
+          </CardHeader>
+          {documentsQuery.isLoading && <TableSkeleton columns={DOCUMENT_COLUMNS} rows={3} />}
+          {documentsQuery.data && documentsQuery.data.rows.length === 0 && (
+            <p className="px-5 pb-5 text-sm text-text-400">
+              Nothing sent yet — send a photo or PDF to the bot to log your first one.
+            </p>
+          )}
+          {documentsQuery.data && documentsQuery.data.rows.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="border-y border-line text-left text-xs uppercase tracking-wide text-text-400">
+                    <th className="px-5 py-2.5 font-medium">Date</th>
+                    <th className="px-5 py-2.5 font-medium">Description</th>
+                    <th className="px-5 py-2.5 font-medium">Category</th>
+                    <th className="px-5 py-2.5 text-right font-medium">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {documentsQuery.data.rows.map((row) => (
+                    <tr key={row.id} className="border-b border-line last:border-b-0">
+                      <td className="whitespace-nowrap px-5 py-3 font-mono tabular text-text-400">
+                        {formatDate(row.date)}
+                      </td>
+                      <td className="px-5 py-3 text-text-100">{row.description}</td>
+                      <td className="px-5 py-3">
+                        {row.category ?? <span className="text-text-600">Uncategorized</span>}
+                      </td>
+                      <td
+                        className={
+                          "whitespace-nowrap px-5 py-3 text-right font-mono tabular " +
+                          (row.direction === "credit" ? "text-moss-400" : "text-rust-400")
+                        }
+                      >
+                        {row.direction === "credit" ? "+" : "−"}
+                        {formatCurrency(Number(row.amount), row.currency)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

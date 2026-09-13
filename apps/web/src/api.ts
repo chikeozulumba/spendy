@@ -1,7 +1,10 @@
 import type {
+  AllTransactions,
   Budget,
   BudgetSummary,
   Insights,
+  LoanRow,
+  LoanStatus,
   PeriodComparison,
   Scope,
   SpendingByBankOverview,
@@ -9,6 +12,7 @@ import type {
   StatementDetail,
   StatementSummary,
   Transaction,
+  TransactionSource,
 } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8787";
@@ -168,6 +172,24 @@ export const api = {
   createTelegramLinkToken: (getToken: GetToken) =>
     request<{ token: string; expiresInMinutes: number }>(getToken, "/telegram/link-token", {
       method: "POST",
+    }),
+
+  getAllTransactions: (getToken: GetToken, source?: TransactionSource) =>
+    request<AllTransactions>(
+      getToken,
+      `/transactions${source ? `?source=${source}` : ""}`
+    ),
+
+  getTelegramStatus: (getToken: GetToken) =>
+    request<{ linked: boolean }>(getToken, "/telegram/status"),
+
+  getLoans: (getToken: GetToken, status?: LoanStatus) =>
+    request<LoanRow[]>(getToken, `/loans${status ? `?status=${status}` : ""}`),
+
+  updateLoan: (getToken: GetToken, id: string, changes: { status?: LoanStatus; notes?: string }) =>
+    request<{ id: string; status: LoanStatus; notes: string | null }>(getToken, `/loans/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(changes),
     }),
 
   subscribeToPush: (getToken: GetToken, subscription: PushSubscriptionJSON) =>

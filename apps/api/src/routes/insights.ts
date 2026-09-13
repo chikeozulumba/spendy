@@ -1,23 +1,10 @@
 import { Hono } from "hono";
 import { sql } from "../db.js";
 import { requireAuth } from "../auth.js";
+import { primaryCurrencyFor } from "../lib/currency.js";
 
 export const insights = new Hono();
 insights.use("*", requireAuth);
-
-// The currency most of the user's statements are in — used by both endpoints
-// below so their charts show one currency's worth of totals rather than
-// silently summing statements in different currencies together.
-async function primaryCurrencyFor(userId: string): Promise<string> {
-  const currencyCounts = await sql`
-    SELECT currency, COUNT(*) AS count
-    FROM statements
-    WHERE user_id = ${userId} AND status = 'done'
-    GROUP BY currency
-    ORDER BY count DESC
-  `;
-  return currencyCounts[0]?.currency ?? "USD";
-}
 
 // Cross-statement overview for the home page: total spend per category per
 // year, across every completed statement the user has. Grouped by currency

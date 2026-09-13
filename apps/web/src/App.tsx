@@ -5,6 +5,7 @@ import { Menu, Plus } from "lucide-react";
 import clsx from "clsx";
 import StatementsListPage from "./pages/StatementsListPage";
 import StatementDetailPage from "./pages/StatementDetailPage";
+import AllTransactionsPage from "./pages/AllTransactionsPage";
 import BudgetsPage from "./pages/BudgetsPage";
 import ComparePage from "./pages/ComparePage";
 import TelegramLinkPage from "./pages/TelegramLinkPage";
@@ -16,6 +17,7 @@ import { UploadModal } from "./components/UploadModal";
 import { UploadModalProvider, useUploadModal } from "./context/UploadModalContext";
 
 const NAV_LINKS = [
+  { to: "/transactions", label: "Transactions" },
   { to: "/budgets", label: "Budgets" },
   { to: "/compare", label: "Compare" },
   { to: "/telegram", label: "Telegram" },
@@ -112,7 +114,7 @@ function AppShell() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
         <SignedOut>
           <div className="mx-auto mt-16 flex max-w-md flex-col items-center gap-5 text-center">
             <Logo showWordmark={false} className="scale-150" />
@@ -135,6 +137,7 @@ function AppShell() {
           <Routes>
             <Route path="/" element={<StatementsListPage />} />
             <Route path="/statements/:id" element={<StatementDetailPage />} />
+            <Route path="/transactions" element={<AllTransactionsPage />} />
             <Route path="/budgets" element={<BudgetsPage />} />
             <Route path="/compare" element={<ComparePage />} />
             <Route path="/telegram" element={<TelegramLinkPage />} />
