@@ -1,5 +1,9 @@
 import type {
+  Budget,
+  BudgetSummary,
   Insights,
+  PeriodComparison,
+  Scope,
   SpendingByBankOverview,
   SpendingOverview,
   StatementDetail,
@@ -86,4 +90,75 @@ export const api = {
 
   getSpendingByBank: (getToken: GetToken) =>
     request<SpendingByBankOverview>(getToken, "/insights/spending-by-bank"),
+
+  getScopes: (getToken: GetToken) => request<Scope[]>(getToken, "/scopes"),
+
+  createScope: (getToken: GetToken, name: string, categories: string[]) =>
+    request<Scope>(getToken, "/scopes", {
+      method: "POST",
+      body: JSON.stringify({ name, categories }),
+    }),
+
+  updateScope: (
+    getToken: GetToken,
+    id: string,
+    changes: { name?: string; categories?: string[] }
+  ) =>
+    request<Scope>(getToken, `/scopes/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(changes),
+    }),
+
+  deleteScope: (getToken: GetToken, id: string) =>
+    request(getToken, `/scopes/${id}`, { method: "DELETE" }),
+
+  getBudgets: (getToken: GetToken, periodStart: string, periodEnd: string) =>
+    request<Budget[]>(
+      getToken,
+      `/budgets?periodStart=${periodStart}&periodEnd=${periodEnd}`
+    ),
+
+  setBudget: (
+    getToken: GetToken,
+    input: {
+      scopeId: string;
+      periodStart: string;
+      periodEnd: string;
+      amount: number;
+      currency: string;
+    }
+  ) =>
+    request<Budget>(getToken, "/budgets", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+
+  deleteBudget: (getToken: GetToken, id: string) =>
+    request(getToken, `/budgets/${id}`, { method: "DELETE" }),
+
+  getBudgetSummary: (
+    getToken: GetToken,
+    periodStart: string,
+    periodEnd: string,
+    currency?: string
+  ) =>
+    request<BudgetSummary>(
+      getToken,
+      `/insights/budget-summary?periodStart=${periodStart}&periodEnd=${periodEnd}` +
+        (currency ? `&currency=${currency}` : "")
+    ),
+
+  getPeriodComparison: (
+    getToken: GetToken,
+    input: { aStart: string; aEnd: string; bStart: string; bEnd: string; currency?: string }
+  ) => {
+    const params = new URLSearchParams({
+      aStart: input.aStart,
+      aEnd: input.aEnd,
+      bStart: input.bStart,
+      bEnd: input.bEnd,
+      ...(input.currency ? { currency: input.currency } : {}),
+    });
+    return request<PeriodComparison>(getToken, `/insights/period-comparison?${params}`);
+  },
 };

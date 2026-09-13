@@ -7,7 +7,9 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 set -a
-source ../../.env
+if [ -f ../../.env ]; then
+  source ../../.env
+fi
 set +a
 
 exec .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port "${PDF_SERVICE_PORT:-8000}" --reload

@@ -81,6 +81,49 @@ export interface SpendingByBankOverview {
   primaryCurrency: string;
 }
 
+export interface Scope {
+  id: string;
+  name: string;
+  categories: string[];
+}
+
+export interface Budget {
+  id: string;
+  scopeId: string;
+  scopeName: string;
+  periodStart: string;
+  periodEnd: string;
+  amount: string;
+  currency: string;
+}
+
+export interface BudgetSummaryRow {
+  scopeId: string;
+  scopeName: string;
+  actual: string;
+  budgetId: string | null;
+  budgetAmount: string | null;
+  overBudget: boolean;
+}
+
+export interface BudgetSummary {
+  currency: string;
+  rows: BudgetSummaryRow[];
+}
+
+export interface PeriodComparisonCategoryRow {
+  category: string;
+  totalA: number;
+  totalB: number;
+}
+
+export interface PeriodComparison {
+  currency: string;
+  totalA: number;
+  totalB: number;
+  categories: PeriodComparisonCategoryRow[];
+}
+
 export const CATEGORIES = [
   "Food & Groceries",
   "Transport",
