@@ -155,7 +155,7 @@ raised this, categorize into one of the existing categories above as normal.
 Return ONLY strict JSON, no commentary, no markdown fences, matching:
 {{
   "amount": <positive number>,
-  "date": "<YYYY-MM-DD, your best determination from the document or conversation, or today's date if genuinely neither indicates one>",
+  "date": "<YYYY-MM-DD — when this transaction itself happened (the receipt/transfer date, i.e. when the loan was GIVEN or received), your best determination from the document or conversation, or today's date if genuinely neither indicates one>",
   "description": "<short merchant/purpose description>",
   "direction": "debit" | "credit",
   "category": "<one of the existing categories above, or the new one confirmed in conversation>",
@@ -165,13 +165,23 @@ Return ONLY strict JSON, no commentary, no markdown fences, matching:
   "entity_type": "person" | "business" | "place" | "other" | "unknown" | null,
   "is_loan": <true | false>,
   "loan_counterparty": "<name mentioned in conversation, or null if not a loan or not stated>",
-  "loan_expected_repayment_date": "<YYYY-MM-DD if a repayment date was stated, else null>"
+  "loan_expected_repayment_date": "<YYYY-MM-DD — when the money is expected BACK, a future commitment stated in the CONVERSATION only (e.g. 'due back Friday', 'in two weeks'). Not when the loan was given. null if no such date was stated>"
 }}
 
 Rules:
 - "is_loan" is true only if the conversation clearly states this is money lent
   out that the user expects back (or, if received, an informal loan they took
   and must repay). An ordinary purchase or gift is not a loan.
+- "date" and "loan_expected_repayment_date" answer two different questions and
+  must never be conflated: "date" is when the transaction happened (when the
+  loan was handed over) — it may legitimately come from the document itself.
+  "loan_expected_repayment_date" is when it's due BACK, which by definition
+  cannot be read off a receipt/transfer confirmation for money changing hands
+  today — it only ever comes from something the user actually said in the
+  conversation about a future repayment. Never copy "date" (or any date
+  visible on the document) into "loan_expected_repayment_date" — if the
+  conversation never states a separate repayment date, the correct answer is
+  null, even though "date" itself is populated.
 - Never invent a loan_expected_repayment_date that wasn't actually stated —
   null is a valid, expected answer for "no date given".
 - "amount" must be a positive number regardless of direction.
