@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from . import db
 from .config import settings
+from .contacts import upsert_contact
 from .llm import LlmJsonError, structure_telegram_capture
 from .storage import fetch_decrypted_pdf
 from .telegram_client import send_message
@@ -59,7 +60,10 @@ async def process_telegram_session(
         description = _as_nonempty_str(result.get("description")) or "Telegram capture"
         direction = result.get("direction")
         category = result.get("category")
+        is_new_category = bool(result.get("is_new_category"))
         bank_name = _as_nonempty_str(result.get("bank_name"))
+        entity_name = _as_nonempty_str(result.get("entity_name"))
+        entity_type = result.get("entity_type")
         is_loan = bool(result.get("is_loan"))
         loan_counterparty = _as_nonempty_str(result.get("loan_counterparty"))
         loan_repayment_date = result.get("loan_expected_repayment_date")
@@ -68,8 +72,19 @@ async def process_telegram_session(
             raise RuntimeError(
                 f"Structuring response missing required fields: {result!r}"
             )
+
         if category not in taxonomy:
-            category = "Other"
+            if is_new_category and (new_name := _as_nonempty_str(category)):
+                # The conversation already shows the user confirming this
+                # exact name — the "option to create a new category" was
+                # already given and accepted in chat, this just persists it.
+                await db.create_category(new_name)
+                category = new_name
+            else:
+                # The model named something outside the taxonomy without the
+                # conversation actually confirming a new category — treat as
+                # a miscategorization rather than silently inventing one.
+                category = "Other"
 
         transaction_id = await db.insert_telegram_transaction(
             user_id, date, description, amount, direction, category, 0.8, bank_name
@@ -77,6 +92,10 @@ async def process_telegram_session(
 
         if is_loan:
             await db.insert_loan_book(user_id, transaction_id, loan_counterparty, amount, loan_repayment_date)
+
+        contact_id = await upsert_contact(user_id, entity_name, entity_type)
+        if contact_id:
+            await db.set_transaction_contact(transaction_id, contact_id)
 
         await db.insert_telegram_session_log(user_id, chat_id, storage_path, transcript, transaction_id)
 

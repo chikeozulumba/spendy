@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from . import db
 from .categorize import categorize_all
 from .config import settings
+from .contacts import resolve_entities_for_transactions
 from .llm import LlmJsonError, extract_transactions, generate_summary
 from .pdf_extract import PdfPasswordError, decrypt_if_needed, extract_text
 from .reconcile import check_reconciliation
@@ -108,6 +109,7 @@ async def process(req: ProcessRequest, x_internal_token: str | None = Header(def
             for tx_id, row in zip(tx_ids, parsed_transactions)
         ]
         await categorize_all(user_id, tx_for_categorization)
+        await resolve_entities_for_transactions(user_id, tx_for_categorization)
 
         current_totals = await db.get_statement_category_totals(statement_id)
         before_date = _parse_date(period_end) or dt.date.today()

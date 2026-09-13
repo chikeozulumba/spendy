@@ -8,6 +8,8 @@ import StatementDetailPage from "./pages/StatementDetailPage";
 import AllTransactionsPage from "./pages/AllTransactionsPage";
 import BudgetsPage from "./pages/BudgetsPage";
 import ComparePage from "./pages/ComparePage";
+import ContactsPage from "./pages/ContactsPage";
+import ContactDetailPage from "./pages/ContactDetailPage";
 import TelegramLinkPage from "./pages/TelegramLinkPage";
 import Logo from "./components/Logo";
 import { Button } from "./components/ui/Button";
@@ -18,6 +20,7 @@ import { UploadModalProvider, useUploadModal } from "./context/UploadModalContex
 
 const NAV_LINKS = [
   { to: "/transactions", label: "Transactions" },
+  { to: "/contacts", label: "People & places" },
   { to: "/budgets", label: "Budgets" },
   { to: "/compare", label: "Compare" },
   { to: "/telegram", label: "Spendybot" },
@@ -138,6 +141,8 @@ function AppShell() {
             <Route path="/" element={<StatementsListPage />} />
             <Route path="/statements/:id" element={<StatementDetailPage />} />
             <Route path="/transactions" element={<AllTransactionsPage />} />
+            <Route path="/contacts" element={<ContactsPage />} />
+            <Route path="/contacts/:id" element={<ContactDetailPage />} />
             <Route path="/budgets" element={<BudgetsPage />} />
             <Route path="/compare" element={<ComparePage />} />
             <Route path="/telegram" element={<TelegramLinkPage />} />

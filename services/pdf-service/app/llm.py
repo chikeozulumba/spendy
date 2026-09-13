@@ -124,7 +124,14 @@ a blurry cash handoff photo, or a screenshot with no clear amount), treat the
 conversation transcript as the primary source of truth instead — the user may have
 stated the amount/purpose in words rather than it being legible in the image.
 
-Categorize into EXACTLY ONE of these categories (verbatim): {taxonomy}
+Categorize into ONE of these existing categories (verbatim) when it genuinely fits: {taxonomy}
+
+The conversation transcript may show the assistant proposing a brand new
+category (because nothing existing fit) and the user confirming it — if so,
+use that confirmed new category name for "category" and set
+"is_new_category" to true. Only do this when the transcript shows the user
+actually agreed to a specific new category name; if the conversation never
+raised this, categorize into one of the existing categories above as normal.
 
 Return ONLY strict JSON, no commentary, no markdown fences, matching:
 {{
@@ -132,8 +139,11 @@ Return ONLY strict JSON, no commentary, no markdown fences, matching:
   "date": "<YYYY-MM-DD, your best determination from the document or conversation, or today's date if genuinely neither indicates one>",
   "description": "<short merchant/purpose description>",
   "direction": "debit" | "credit",
-  "category": "<one of the categories above>",
+  "category": "<one of the existing categories above, or the new one confirmed in conversation>",
+  "is_new_category": <true only if "category" is a brand new one confirmed in conversation, else false>,
   "bank_name": "<bank/institution this went through, e.g. from a transfer confirmation or what the user said, or null if genuinely cash/not applicable>",
+  "entity_name": "<the actual person, business, or place this money went to/came from, or null if genuinely not identifiable>",
+  "entity_type": "person" | "business" | "place" | "other" | "unknown" | null,
   "is_loan": <true | false>,
   "loan_counterparty": "<name mentioned in conversation, or null if not a loan or not stated>",
   "loan_expected_repayment_date": "<YYYY-MM-DD if a repayment date was stated, else null>"
@@ -149,6 +159,11 @@ Rules:
 - "bank_name" should be null for a plain cash payment — don't guess a bank
   just because a payment happened; only set it when a bank/institution is
   actually legible on the document or was stated in conversation.
+- "entity_name" is who/what the money actually went to or came from (a
+  merchant, a named person, a landlord) — not the bank/rail it went through.
+  If this is a loan, "entity_name" should match "loan_counterparty" (they're
+  the same person). Use null rather than guessing when the conversation and
+  document genuinely don't identify a counterparty.
 """
 
 
@@ -249,6 +264,47 @@ def categorize_transactions(items: list[dict], taxonomy: list[str]) -> list[dict
     if isinstance(result, list):
         return result
     raise LlmJsonError("Categorization response was not a list")
+
+
+ENTITY_SYSTEM_PROMPT = """You are an entity-extraction system for a personal finance app.
+You will be given a JSON list of bank transactions, each with an "id" and "description"
+(raw text straight from a bank statement — often messy, e.g. "SQ *BLUE BOTTLE COFFEE",
+"ZELLE TO JOHN SMITH", "AMZN Mktp US*A1B2C3", "CHEVRON 0123456 HOUSTON TX").
+
+For each one, identify the actual person, business, or place the money flowed to/from,
+if the description makes that identifiable at all.
+
+Return ONLY strict JSON: a list of
+{"transaction_id": "...", "entity_name": "<clean name, or null>", "entity_type": "person" | "business" | "place" | "other" | "unknown" | null}
+one entry per input transaction, no commentary, no markdown fences.
+
+Rules:
+- Strip processor/POS noise (leading "SQ *", "TST*", trailing store numbers,
+  city/state codes, card-network suffixes) down to the actual name — "SQ *BLUE
+  BOTTLE COFFEE" becomes "Blue Bottle Coffee", not "SQ Blue Bottle Coffee".
+- "ZELLE TO JOHN SMITH" / "person-to-person" style transfers name the actual
+  person, type "person" — not "Zelle" itself (that's the rail, not the entity).
+- A generic, non-identifying description ("ATM WITHDRAWAL", "INTEREST
+  PAYMENT", "MONTHLY MAINTENANCE FEE", "TRANSFER FROM SAVINGS") has no real
+  counterparty — return "entity_name": null, "entity_type": null for those
+  rather than inventing one.
+- Use "business" for companies/merchants, "place" only for a physical
+  location that isn't itself a business (e.g. a toll plaza, a city transit
+  system), "person" for an individual's name, "other" for anything real but
+  not fitting those (a government agency, a nonprofit).
+"""
+
+
+def extract_entities(items: list[dict]) -> list[dict]:
+    """items: [{"id": ..., "description": ...}, ...] — same batching shape
+    and truncation-budget reasoning as categorize_transactions."""
+    user = json.dumps(items)
+    result = _call_json(ENTITY_SYSTEM_PROMPT, user, max_tokens=20000)
+    if isinstance(result, dict) and "results" in result:
+        return result["results"]
+    if isinstance(result, list):
+        return result
+    raise LlmJsonError("Entity extraction response was not a list")
 
 
 SUMMARY_SYSTEM_PROMPT = """You write short, plain-language monthly spending summaries

@@ -2,6 +2,9 @@ import type {
   AllTransactions,
   Budget,
   BudgetSummary,
+  ContactDetail,
+  ContactsList,
+  ContactSort,
   Insights,
   LoanRow,
   LoanStatus,
@@ -210,6 +213,12 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ endpoint }),
     }),
+
+  getContacts: (getToken: GetToken, sort?: ContactSort) =>
+    request<ContactsList>(getToken, `/contacts${sort ? `?sort=${sort}` : ""}`),
+
+  getContact: (getToken: GetToken, id: string) =>
+    request<ContactDetail>(getToken, `/contacts/${id}`),
 
   // Binary response (the original receipt/document), not JSON — opened in a
   // new tab as a blob URL rather than a plain <a href>, since the endpoint

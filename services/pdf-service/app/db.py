@@ -142,10 +142,54 @@ async def set_transaction_category(transaction_id: str, category: str, confidenc
     )
 
 
+async def upsert_contact(user_id: str, name: str, normalized_name: str, entity_type: str) -> str:
+    pool = await get_pool()
+    record = await pool.fetchrow(
+        """
+        INSERT INTO contacts (user_id, name, normalized_name, type)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (user_id, normalized_name) DO UPDATE SET
+          -- A contact seen again with a more specific type upgrades from
+          -- 'unknown' — but never overwrites an already-confident type with
+          -- a less certain one from a later, more ambiguous mention.
+          type = CASE WHEN contacts.type = 'unknown' THEN EXCLUDED.type ELSE contacts.type END,
+          updated_at = now()
+        RETURNING id
+        """,
+        user_id,
+        name,
+        normalized_name,
+        entity_type,
+    )
+    return str(record["id"])
+
+
+async def set_transaction_contact(transaction_id: str, contact_id: str) -> None:
+    pool = await get_pool()
+    await pool.execute("UPDATE transactions SET contact_id = $2 WHERE id = $1", transaction_id, contact_id)
+
+
 async def get_categories() -> list[str]:
     pool = await get_pool()
     rows = await pool.fetch("SELECT name FROM categories ORDER BY sort_order ASC")
     return [r["name"] for r in rows]
+
+
+async def create_category(name: str) -> None:
+    """Adds a brand new category the user confirmed creating during a
+    Telegram capture (Section: 'give the option to create a new category').
+    Global, same as every existing category — appended after whatever the
+    current highest sort_order is. Idempotent: a category name that already
+    exists (e.g. a race with another concurrent capture) is left as-is."""
+    pool = await get_pool()
+    await pool.execute(
+        """
+        INSERT INTO categories (name, sort_order)
+        SELECT $1, COALESCE(MAX(sort_order), 0) + 1 FROM categories
+        ON CONFLICT (name) DO NOTHING
+        """,
+        name,
+    )
 
 
 async def get_user_override(user_id: str, merchant_pattern: str) -> str | None:

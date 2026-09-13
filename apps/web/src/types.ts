@@ -69,6 +69,58 @@ export interface AllTransactions {
   metrics: TransactionsMetrics;
 }
 
+export type ContactType = "person" | "business" | "place" | "other" | "unknown";
+
+export interface ContactRow {
+  id: string;
+  name: string;
+  type: ContactType;
+  transactionCount: number;
+  totalDebit: string;
+  totalCredit: string;
+  firstInteractionAt: string | null;
+  lastInteractionAt: string | null;
+}
+
+export type ContactSort = "recent" | "amount" | "frequency";
+
+export interface ContactsList {
+  primaryCurrency: string;
+  contacts: ContactRow[];
+}
+
+export interface ContactCategoryBreakdown {
+  category: string;
+  count: number;
+  total: string;
+}
+
+export interface ContactDetailTransaction {
+  id: string;
+  date: string;
+  description: string;
+  amount: string;
+  direction: "debit" | "credit";
+  category: string | null;
+  source: TransactionSource;
+  currency: string;
+  bankName: string | null;
+}
+
+export interface ContactDetail {
+  contact: { id: string; name: string; type: ContactType; createdAt: string };
+  primaryCurrency: string;
+  metrics: {
+    transactionCount: number;
+    totalDebit: string;
+    totalCredit: string;
+    firstInteractionAt: string | null;
+    lastInteractionAt: string | null;
+  };
+  topCategories: ContactCategoryBreakdown[];
+  transactions: ContactDetailTransaction[];
+}
+
 export type LoanStatus = "outstanding" | "repaid" | "overdue" | "written_off";
 
 export interface LoanRow {
