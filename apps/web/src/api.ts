@@ -61,6 +61,9 @@ export const api = {
       body: JSON.stringify({ bankName }),
     }),
 
+  deleteStatement: (getToken: GetToken, id: string) =>
+    request(getToken, `/statements/${id}`, { method: "DELETE" }),
+
   reprocessStatement: (getToken: GetToken, id: string, password?: string) =>
     request<{ id: string; status: string }>(getToken, `/statements/${id}/reprocess`, {
       method: "POST",

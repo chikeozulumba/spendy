@@ -23,5 +23,10 @@ class Settings:
     anthropic_api_key: str = _required("ANTHROPIC_API_KEY")
     retention_days: int = int(os.environ.get("RETENTION_DAYS", "30"))
 
+    # Needed here (not just in the telegram-bot service) because this
+    # service sends the final "here's what was logged" confirmation itself,
+    # once processing completes — see telegram_processing.py.
+    telegram_bot_token: str = _required("TELEGRAM_BOT_TOKEN")
+
 
 settings = Settings()

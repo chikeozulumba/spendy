@@ -1,5 +1,6 @@
 packages:
   - "apps/*"
+  - "services/telegram-bot"
 allowBuilds:
   '@clerk/shared': true
   esbuild: true

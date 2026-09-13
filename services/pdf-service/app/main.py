@@ -12,11 +12,13 @@ from .pdf_extract import PdfPasswordError, decrypt_if_needed, extract_text
 from .reconcile import check_reconciliation
 from .redact import redact_account_numbers
 from .storage import fetch_decrypted_pdf
+from .telegram_processing import router as telegram_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("pdf-service")
 
 app = FastAPI(title="spendy-pdf-service")
+app.include_router(telegram_router)
 
 
 class ProcessRequest(BaseModel):

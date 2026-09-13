@@ -1,7 +1,8 @@
 import { useAuth } from "@clerk/clerk-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
+import { Trash2 } from "lucide-react";
 import { api } from "../api";
 import { BankCombobox } from "../components/BankCombobox";
 import CategoryAmountBarChart from "../components/CategoryAmountBarChart";
@@ -34,6 +35,7 @@ export default function StatementDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { getToken } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [password, setPassword] = useState("");
 
   const statementQuery = useQuery({
@@ -87,6 +89,22 @@ export default function StatementDetailPage() {
     },
   });
 
+  const deleteStatement = useMutation({
+    mutationFn: () => api.deleteStatement(getToken, id!),
+    onSuccess: () => {
+      // Every view that could have summed this statement's transactions in:
+      // the ledger, both home-page charts, budget actuals for any period,
+      // and any period comparison currently on screen.
+      queryClient.invalidateQueries({ queryKey: ["statements"] });
+      queryClient.invalidateQueries({ queryKey: ["spending-overview"] });
+      queryClient.invalidateQueries({ queryKey: ["spending-by-bank"] });
+      queryClient.invalidateQueries({ queryKey: ["budget-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["period-comparison"] });
+      queryClient.invalidateQueries({ queryKey: ["banks"] });
+      navigate("/");
+    },
+  });
+
   if (statementQuery.isLoading)
     return (
       <div className="flex flex-col gap-5">
@@ -127,11 +145,29 @@ export default function StatementDetailPage() {
             <StatusBadge status={statement.status} />
           </div>
         </div>
-        {isDone &&
-          insightsQuery.data &&
-          insightsQuery.data.reconciliationOk !== null && (
-            <ReconciliationStamp ok={insightsQuery.data.reconciliationOk} />
-          )}
+        <div className="flex items-center gap-3">
+          {isDone &&
+            insightsQuery.data &&
+            insightsQuery.data.reconciliationOk !== null && (
+              <ReconciliationStamp ok={insightsQuery.data.reconciliationOk} />
+            )}
+          <Button
+            variant="danger"
+            onClick={() => {
+              if (
+                confirm(
+                  `Delete "${statement.originalFilename}"? This removes its transactions and can't be undone.`
+                )
+              ) {
+                deleteStatement.mutate();
+              }
+            }}
+            disabled={deleteStatement.isPending}
+          >
+            <Trash2 className="size-4" strokeWidth={1.8} />
+            {deleteStatement.isPending ? "Deleting…" : "Delete statement"}
+          </Button>
+        </div>
       </Card>
 
       {(statement.status === "uploaded" ||

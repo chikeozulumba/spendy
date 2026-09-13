@@ -123,6 +123,30 @@ statements.patch("/:id", async (c) => {
   return c.json({ id, bankName });
 });
 
+// Deletes a statement and everything derived from it: transactions and jobs
+// cascade at the DB level (ON DELETE CASCADE in 001_init.sql), so the only
+// thing this handler does beyond the row delete itself is purge the raw PDF
+// from object storage — that's not a DB relation and would otherwise be
+// orphaned. Budgets/scopes are untouched: they're independent of any one
+// statement, and a scope's "actual spend" simply recomputes lower once this
+// statement's transactions are gone.
+statements.delete("/:id", async (c) => {
+  const userId = c.get("userId");
+  const id = c.req.param("id");
+
+  const [existing] = await sql<{ storagePath: string | null }[]>`
+    SELECT storage_path FROM statements WHERE id = ${id} AND user_id = ${userId}
+  `;
+  if (!existing) return c.json({ error: "Not found" }, 404);
+
+  if (existing.storagePath) {
+    await deleteObject(existing.storagePath);
+  }
+  await sql`DELETE FROM statements WHERE id = ${id}`;
+
+  return c.json({ ok: true });
+});
+
 statements.get("/", async (c) => {
   const userId = c.get("userId");
   const rows = await sql`

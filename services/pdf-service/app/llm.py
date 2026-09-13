@@ -1,3 +1,4 @@
+import base64
 import json
 import re
 
@@ -72,6 +73,99 @@ def _call_json(system: str, user: str, *, max_tokens: int = 4096) -> dict:
                 "Respond again with ONLY valid JSON, no commentary, no markdown fences."
             )
     raise LlmJsonError(f"LLM did not return valid JSON after retry: {last_error}")
+
+
+def _call_json_multimodal(system: str, content: list[dict], *, max_tokens: int = 4096) -> dict:
+    """Same contract as _call_json, but for a request that includes a
+    document/image content block alongside text — used only by the Telegram
+    capture's structuring call, where the document itself (not
+    pre-extracted text) is part of the input."""
+    last_error: Exception | None = None
+    for attempt in range(2):
+        if attempt > 0:
+            content = content + [
+                {
+                    "type": "text",
+                    "text": "Your previous response was not valid JSON and could not be "
+                    "parsed. Respond again with ONLY valid JSON, no commentary, no markdown fences.",
+                }
+            ]
+
+        response = _client.messages.create(
+            model=_MODEL,
+            max_tokens=max_tokens,
+            system=system,
+            thinking={"type": "disabled"},
+            messages=[{"role": "user", "content": content}],
+        )
+
+        if response.stop_reason == "max_tokens":
+            last_error = RuntimeError(
+                f"response was truncated at the {max_tokens}-token limit before completing"
+            )
+            break
+
+        raw = "".join(block.text for block in response.content if block.type == "text")
+        try:
+            return json.loads(_extract_json_block(raw))
+        except json.JSONDecodeError as exc:
+            last_error = exc
+    raise LlmJsonError(f"LLM did not return valid JSON after retry: {last_error}")
+
+
+TELEGRAM_CAPTURE_SYSTEM_PROMPT = """You are a financial data extraction system for
+Spendy's Trends feature: a user sent a photo or PDF of a receipt/payment/transfer
+via Telegram, then had a short conversation clarifying what it was for. You are
+given both the document and the full conversation transcript.
+
+Treat the document as the source of truth for the amount/date/merchant when it's
+a legible formal receipt or transfer confirmation. For an informal document (e.g.
+a blurry cash handoff photo, or a screenshot with no clear amount), treat the
+conversation transcript as the primary source of truth instead — the user may have
+stated the amount/purpose in words rather than it being legible in the image.
+
+Categorize into EXACTLY ONE of these categories (verbatim): {taxonomy}
+
+Return ONLY strict JSON, no commentary, no markdown fences, matching:
+{{
+  "amount": <positive number>,
+  "date": "<YYYY-MM-DD, your best determination from the document or conversation, or today's date if genuinely neither indicates one>",
+  "description": "<short merchant/purpose description>",
+  "direction": "debit" | "credit",
+  "category": "<one of the categories above>",
+  "is_loan": <true | false>,
+  "loan_counterparty": "<name mentioned in conversation, or null if not a loan or not stated>",
+  "loan_expected_repayment_date": "<YYYY-MM-DD if a repayment date was stated, else null>"
+}}
+
+Rules:
+- "is_loan" is true only if the conversation clearly states this is money lent
+  out that the user expects back (or, if received, an informal loan they took
+  and must repay). An ordinary purchase or gift is not a loan.
+- Never invent a loan_expected_repayment_date that wasn't actually stated —
+  null is a valid, expected answer for "no date given".
+- "amount" must be a positive number regardless of direction.
+"""
+
+
+def structure_telegram_capture(
+    transcript: list[dict], document_bytes: bytes, mime_type: str, taxonomy: list[str]
+) -> dict:
+    encoded = base64.b64encode(document_bytes).decode("ascii")
+    block_type = "document" if mime_type == "application/pdf" else "image"
+
+    transcript_text = "\n".join(
+        f"{'User' if turn.get('role') == 'user' else 'Assistant'}: {turn.get('message', '')}"
+        for turn in transcript
+    )
+
+    content = [
+        {"type": block_type, "source": {"type": "base64", "media_type": mime_type, "data": encoded}},
+        {"type": "text", "text": f"Conversation transcript:\n{transcript_text}"},
+    ]
+
+    system = TELEGRAM_CAPTURE_SYSTEM_PROMPT.format(taxonomy=", ".join(taxonomy))
+    return _call_json_multimodal(system, content, max_tokens=1024)
 
 
 EXTRACTION_SYSTEM_PROMPT = """You are a precise financial data extraction system.

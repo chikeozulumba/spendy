@@ -1,4 +1,5 @@
 import datetime as dt
+import json
 
 import asyncpg
 
@@ -226,3 +227,129 @@ async def statements_older_than(days: int) -> list[asyncpg.Record]:
 async def clear_storage_path(statement_id: str) -> None:
     pool = await get_pool()
     await pool.execute("UPDATE statements SET storage_path = NULL WHERE id = $1", statement_id)
+
+
+async def fetch_telegram_job(job_id: str) -> asyncpg.Record | None:
+    pool = await get_pool()
+    return await pool.fetchrow(
+        """
+        SELECT id, user_id, chat_id, storage_path, mime_type, transcript
+        FROM telegram_jobs WHERE id = $1
+        """,
+        job_id,
+    )
+
+
+async def insert_telegram_transaction(
+    user_id: str,
+    date,
+    description: str,
+    amount: float,
+    direction: str,
+    category: str,
+    category_confidence: float,
+) -> str:
+    date = _to_date(date)
+    pool = await get_pool()
+    record = await pool.fetchrow(
+        """
+        INSERT INTO transactions
+          (statement_id, user_id, date, description, amount, direction, category, category_confidence, source)
+        VALUES (NULL, $1, $2, $3, $4, $5, $6, $7, 'telegram')
+        RETURNING id
+        """,
+        user_id,
+        date,
+        description,
+        amount,
+        direction,
+        category,
+        category_confidence,
+    )
+    return str(record["id"])
+
+
+async def insert_loan_book(
+    user_id: str,
+    transaction_id: str,
+    counterparty: str | None,
+    amount: float,
+    expected_repayment_date,
+) -> str:
+    expected_repayment_date = _to_date(expected_repayment_date)
+    pool = await get_pool()
+    record = await pool.fetchrow(
+        """
+        INSERT INTO loan_book (user_id, transaction_id, counterparty, amount, expected_repayment_date, status)
+        VALUES ($1, $2, $3, $4, $5, 'outstanding')
+        RETURNING id
+        """,
+        user_id,
+        transaction_id,
+        counterparty,
+        amount,
+        expected_repayment_date,
+    )
+    return str(record["id"])
+
+
+async def insert_telegram_session_log(
+    user_id: str,
+    chat_id: str,
+    storage_path: str,
+    transcript: list,
+    resulting_transaction_id: str | None,
+) -> None:
+    pool = await get_pool()
+    await pool.execute(
+        """
+        INSERT INTO telegram_sessions_log
+          (user_id, chat_id, storage_path, conversation_transcript, resulting_transaction_id, status)
+        VALUES ($1, $2, $3, $4::jsonb, $5, 'completed')
+        """,
+        user_id,
+        chat_id,
+        storage_path,
+        json.dumps(transcript),
+        resulting_transaction_id,
+    )
+
+
+async def telegram_sessions_older_than(days: int) -> list[asyncpg.Record]:
+    pool = await get_pool()
+    return await pool.fetch(
+        """
+        SELECT id, storage_path FROM telegram_sessions_log
+        WHERE storage_path IS NOT NULL
+          AND created_at < now() - ($1 || ' days')::interval
+        """,
+        str(days),
+    )
+
+
+async def clear_telegram_storage_path(session_log_id: str) -> None:
+    pool = await get_pool()
+    await pool.execute(
+        "UPDATE telegram_sessions_log SET storage_path = NULL WHERE id = $1", session_log_id
+    )
+
+
+async def overdue_loan_candidates() -> list[asyncpg.Record]:
+    """Outstanding loans past their expected repayment date, joined with the
+    borrower's Telegram chat id (may be null if they've since unlinked)."""
+    pool = await get_pool()
+    return await pool.fetch(
+        """
+        SELECT l.id, l.counterparty, l.amount, l.expected_repayment_date, u.telegram_chat_id
+        FROM loan_book l
+        JOIN users u ON u.id = l.user_id
+        WHERE l.status = 'outstanding' AND l.expected_repayment_date < CURRENT_DATE
+        """
+    )
+
+
+async def mark_loan_overdue(loan_id: str) -> None:
+    pool = await get_pool()
+    await pool.execute(
+        "UPDATE loan_book SET status = 'overdue', updated_at = now() WHERE id = $1", loan_id
+    )

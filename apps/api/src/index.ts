@@ -7,6 +7,8 @@ import { transactions } from "./routes/transactions.js";
 import { insights } from "./routes/insights.js";
 import { scopes } from "./routes/scopes.js";
 import { budgets } from "./routes/budgets.js";
+import { telegram } from "./routes/telegram.js";
+import { loans } from "./routes/loans.js";
 
 const app = new Hono();
 
@@ -26,6 +28,8 @@ app.route("/transactions", transactions);
 app.route("/insights", insights);
 app.route("/scopes", scopes);
 app.route("/budgets", budgets);
+app.route("/telegram", telegram);
+app.route("/loans", loans);
 
 serve({ fetch: app.fetch, port: env.port }, (info) => {
   console.log(`api listening on http://localhost:${info.port}`);
