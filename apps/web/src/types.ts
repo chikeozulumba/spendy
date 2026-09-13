@@ -80,9 +80,12 @@ export interface ContactRow {
   totalCredit: string;
   firstInteractionAt: string | null;
   lastInteractionAt: string | null;
+  mergedIntoId: string | null;
+  mergedIntoName: string | null;
 }
 
 export type ContactSort = "recent" | "amount" | "frequency";
+export type ContactScope = "primary" | "all";
 
 export interface ContactsList {
   primaryCurrency: string;

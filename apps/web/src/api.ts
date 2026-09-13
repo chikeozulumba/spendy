@@ -3,6 +3,7 @@ import type {
   Budget,
   BudgetSummary,
   ContactDetail,
+  ContactScope,
   ContactsList,
   ContactSort,
   Insights,
@@ -214,8 +215,20 @@ export const api = {
       body: JSON.stringify({ endpoint }),
     }),
 
-  getContacts: (getToken: GetToken, sort?: ContactSort) =>
-    request<ContactsList>(getToken, `/contacts${sort ? `?sort=${sort}` : ""}`),
+  getContacts: (getToken: GetToken, input?: { sort?: ContactSort; q?: string; scope?: ContactScope }) => {
+    const params = new URLSearchParams();
+    if (input?.sort) params.set("sort", input.sort);
+    if (input?.q) params.set("q", input.q);
+    if (input?.scope) params.set("scope", input.scope);
+    const query = params.toString();
+    return request<ContactsList>(getToken, `/contacts${query ? `?${query}` : ""}`);
+  },
+
+  mergeContacts: (getToken: GetToken, input: { primaryContactId: string; mergeContactIds: string[] }) =>
+    request<{ ok: boolean; primaryContactId: string; mergedCount: number }>(getToken, "/contacts/merge", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
 
   getContact: (getToken: GetToken, id: string, input?: { page?: number; pageSize?: number }) => {
     const params = new URLSearchParams();

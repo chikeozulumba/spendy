@@ -9,6 +9,9 @@ contacts.use("*", requireAuth);
 const VALID_SORTS = ["recent", "amount", "frequency"] as const;
 type SortKey = (typeof VALID_SORTS)[number];
 
+const VALID_SCOPES = ["primary", "all"] as const;
+type ScopeKey = (typeof VALID_SCOPES)[number];
+
 const DEFAULT_PAGE_SIZE = 30;
 const MAX_PAGE_SIZE = 100;
 
@@ -24,12 +27,19 @@ contacts.get("/", async (c) => {
   const userId = c.get("userId");
   const sortParam = c.req.query("sort") ?? "recent";
   const sort = (VALID_SORTS as readonly string[]).includes(sortParam) ? (sortParam as SortKey) : "recent";
+  const scopeParam = c.req.query("scope") ?? "primary";
+  const scope = (VALID_SCOPES as readonly string[]).includes(scopeParam) ? (scopeParam as ScopeKey) : "primary";
+  const q = c.req.query("q")?.trim();
 
   const primaryCurrency = await primaryCurrencyFor(userId);
 
+  // LEFT JOIN (not the INNER JOIN this used before merging existed) — a
+  // contact that's been merged away typically has zero transactions still
+  // pointing at it directly (they all moved to the primary), and scope=all
+  // still needs to list it rather than have it silently vanish.
   const rows = await sql`
     SELECT
-      c.id, c.name, c.type,
+      c.id, c.name, c.type, c.merged_into_id, m.name AS merged_into_name,
       COUNT(t.id) AS transaction_count,
       COALESCE(SUM(t.amount) FILTER (WHERE t.direction = 'debit'), 0) AS total_debit,
       COALESCE(SUM(t.amount) FILTER (WHERE t.direction = 'credit'), 0) AS total_credit,
@@ -38,9 +48,12 @@ contacts.get("/", async (c) => {
       MIN(t.date) AS first_interaction_at,
       MAX(t.date) AS last_interaction_at
     FROM contacts c
-    JOIN transactions t ON t.contact_id = c.id
+    LEFT JOIN transactions t ON t.contact_id = c.id
+    LEFT JOIN contacts m ON m.id = c.merged_into_id
     WHERE c.user_id = ${userId}
-    GROUP BY c.id, c.name, c.type
+      ${scope === "primary" ? sql`AND c.merged_into_id IS NULL` : sql``}
+      ${q ? sql`AND c.name ILIKE ${"%" + q + "%"}` : sql``}
+    GROUP BY c.id, c.name, c.type, c.merged_into_id, m.name
     ORDER BY ${SORT_CLAUSES[sort]}
   `;
 
@@ -55,8 +68,70 @@ contacts.get("/", async (c) => {
       totalCredit: r.totalCredit,
       firstInteractionAt: r.firstInteractionAt,
       lastInteractionAt: r.lastInteractionAt,
+      mergedIntoId: r.mergedIntoId,
+      mergedIntoName: r.mergedIntoName,
     })),
   });
+});
+
+// Folds `mergeContactIds` into `primaryContactId`: every transaction
+// currently attached to any of them is reassigned to the primary, and each
+// merged contact is relabeled to the primary's type and marked with
+// merged_into_id so it drops out of the default (scope=primary) list view.
+//
+// Flattened to a single level: if any of the ids being merged were
+// themselves already a primary for earlier merges, their existing
+// "children" are re-pointed straight at the new primary too, rather than
+// left chained through a contact that's no longer the top of its group. And
+// if the chosen primary was itself previously merged into someone else,
+// that's undone here — it's the active primary of this group now.
+contacts.post("/merge", async (c) => {
+  const userId = c.get("userId");
+  const body = await c.req.json().catch(() => null);
+  const primaryContactId = body?.primaryContactId;
+  const mergeContactIds: unknown = body?.mergeContactIds;
+
+  if (typeof primaryContactId !== "string" || !Array.isArray(mergeContactIds) || mergeContactIds.length === 0) {
+    return c.json({ error: "Provide 'primaryContactId' and a non-empty 'mergeContactIds' array" }, 400);
+  }
+  const secondaryIds = [...new Set(mergeContactIds.filter((id): id is string => typeof id === "string"))].filter(
+    (id) => id !== primaryContactId
+  );
+  if (secondaryIds.length === 0) {
+    return c.json({ error: "'mergeContactIds' must contain at least one contact other than the primary" }, 400);
+  }
+
+  const allIds = [primaryContactId, ...secondaryIds];
+  const owned = await sql<{ id: string }[]>`
+    SELECT id FROM contacts WHERE id IN ${sql(allIds)} AND user_id = ${userId}
+  `;
+  if (owned.length !== allIds.length) {
+    return c.json({ error: "One or more contacts were not found" }, 404);
+  }
+
+  const [primary] = await sql<{ type: string }[]>`SELECT type FROM contacts WHERE id = ${primaryContactId}`;
+  if (!primary) return c.json({ error: "Primary contact not found" }, 404);
+
+  await sql.begin(async (trx) => {
+    await trx`
+      UPDATE transactions SET contact_id = ${primaryContactId}
+      WHERE user_id = ${userId} AND contact_id IN ${trx(secondaryIds)}
+    `;
+    // Flatten: anything that pointed at one of the now-merged secondaries
+    // (an earlier merge's children) gets re-pointed at the new primary too,
+    // and the primary itself is un-merged in case it was a secondary before.
+    await trx`
+      UPDATE contacts
+      SET merged_into_id = ${primaryContactId}, type = ${primary.type}, updated_at = now()
+      WHERE user_id = ${userId} AND (id IN ${trx(secondaryIds)} OR merged_into_id IN ${trx(secondaryIds)})
+    `;
+    await trx`
+      UPDATE contacts SET merged_into_id = NULL, updated_at = now()
+      WHERE id = ${primaryContactId} AND merged_into_id IS NOT NULL
+    `;
+  });
+
+  return c.json({ ok: true, primaryContactId, mergedCount: secondaryIds.length });
 });
 
 contacts.get("/:id", async (c) => {
