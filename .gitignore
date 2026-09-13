@@ -14,3 +14,4 @@ venv/
 .pytest_cache/
 minio-data/
 postgres-data/
+apps/web/.wrangler

@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "spendy-web",
+  "compatibility_date": "2025-01-01",
+  "assets": {
+    "directory": "./dist",
+    // This app is a client-side router (react-router's BrowserRouter), so a
+    // direct request for e.g. /statements/abc123 or /budgets has no matching
+    // file in dist/ — Workers must serve index.html for those and let
+    // react-router take over client-side, instead of 404ing.
+    "not_found_handling": "single-page-application"
+  }
+}
