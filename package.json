@@ -5,6 +5,7 @@
   "scripts": {
     "dev:infra": "docker compose up -d",
     "migrate": "pnpm --filter @spendy/api run migrate",
+    "migrate:prod": "pnpm --filter @spendy/api run migrate:prod",
     "dev:api": "pnpm --filter @spendy/api run dev",
     "dev:web": "pnpm --filter @spendy/web run dev",
     "dev:pdf": "bash services/pdf-service/dev.sh",
