@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/Select";
+import { Tooltip } from "../components/ui/Tooltip";
 import { formatCurrency } from "../lib/formatCurrency";
 import { formatDate } from "../lib/formatDate";
 import type { ContactRow, ContactScope, ContactSort } from "../types";
@@ -259,14 +260,21 @@ export default function ContactsPage() {
             <Button variant="ghost" onClick={() => setSelectedIds(new Set())}>
               Clear
             </Button>
-            <Button
-              onClick={() => setMergeDialogOpen(true)}
-              disabled={selectedIds.size < 2}
-              title={selectedIds.size < 2 ? "Select at least 2 contacts to merge" : undefined}
-            >
-              <GitMerge className="size-4" strokeWidth={1.8} />
-              Merge contacts
-            </Button>
+            {selectedIds.size < 2 ? (
+              <Tooltip label="Select at least 2 contacts to merge">
+                <span tabIndex={-1} className="inline-flex">
+                  <Button disabled>
+                    <GitMerge className="size-4" strokeWidth={1.8} />
+                    Merge contacts
+                  </Button>
+                </span>
+              </Tooltip>
+            ) : (
+              <Button onClick={() => setMergeDialogOpen(true)}>
+                <GitMerge className="size-4" strokeWidth={1.8} />
+                Merge contacts
+              </Button>
+            )}
           </div>
         </div>
       )}

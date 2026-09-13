@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button } from "./ui/Button";
+import { Tooltip } from "./ui/Tooltip";
 import { CATEGORIES } from "../types";
 import { cn } from "../lib/cn";
 
@@ -62,15 +63,13 @@ export function ScopeForm({
             const owner = categoryOwners.get(category);
             const disabled = owner !== undefined;
             const checked = categories.has(category);
-            return (
+            const chip = (
               <button
                 type="button"
-                key={category}
                 disabled={disabled}
                 onClick={() => toggle(category)}
-                title={disabled ? `Already assigned to "${owner}"` : undefined}
                 className={cn(
-                  "rounded-full border px-2.5 py-1 text-xs transition-colors",
+                  "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
                   disabled
                     ? "cursor-not-allowed border-line bg-ink-800 text-text-600 opacity-60"
                     : checked
@@ -80,6 +79,18 @@ export function ScopeForm({
               >
                 {category}
               </button>
+            );
+            // A disabled <button> never fires pointer events, so a Radix
+            // tooltip anchored directly on it would never open — the span
+            // wrapper is what actually receives the hover.
+            return disabled ? (
+              <Tooltip key={category} label={`Already assigned to "${owner}"`}>
+                <span tabIndex={-1} className="inline-flex">
+                  {chip}
+                </span>
+              </Tooltip>
+            ) : (
+              <span key={category}>{chip}</span>
             );
           })}
         </div>

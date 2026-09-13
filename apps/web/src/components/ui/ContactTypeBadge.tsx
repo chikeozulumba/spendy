@@ -1,6 +1,7 @@
 import { Building2, HelpCircle, MapPin, Sparkles, User } from "lucide-react";
 import type { ContactType } from "../../types";
 import { colorForIndex } from "../../palette";
+import { Badge } from "./Badge";
 
 // Reuses the app's shared categorical hue rotation (same one CategoryBadge
 // draws from) rather than introducing new colors, so a contact's type badge
@@ -14,25 +15,19 @@ const CONFIG: Record<ContactType, { label: string; icon: typeof User; colorIndex
 };
 
 export function ContactTypeBadge({ type }: { type: ContactType }) {
-  const { label, icon: Icon, colorIndex } = CONFIG[type] ?? CONFIG.unknown;
+  const { label, icon, colorIndex } = CONFIG[type] ?? CONFIG.unknown;
 
   if (colorIndex < 0) {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-line-strong px-2.5 py-1 text-xs font-medium text-text-600">
-        <Icon className="size-3.5" strokeWidth={1.8} />
+      <Badge variant="dashed" icon={icon}>
         {label}
-      </span>
+      </Badge>
     );
   }
 
-  const color = colorForIndex(colorIndex);
   return (
-    <span
-      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
-      style={{ backgroundColor: `${color}1a`, color }}
-    >
-      <Icon className="size-3.5" strokeWidth={1.8} />
+    <Badge variant="soft" color={colorForIndex(colorIndex)} icon={icon}>
       {label}
-    </span>
+    </Badge>
   );
 }

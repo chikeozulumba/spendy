@@ -1,17 +1,18 @@
-import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { useQuery } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Calendar } from "lucide-react";
+import { Calendar, TrendingDown, TrendingUp } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
-import { Sheet, SheetBody, SheetContent, SheetHeader, SheetTitle } from "./ui/Sheet";
-import { ContactTypeBadge } from "./ui/ContactTypeBadge";
-import { CategoryBadge } from "./ui/CategoryBadge";
-import { Pagination } from "./ui/Pagination";
-import { Skeleton } from "./ui/Skeleton";
+import { cn } from "../lib/cn";
 import { formatCurrency } from "../lib/formatCurrency";
 import { formatDate } from "../lib/formatDate";
 import type { ContactRow } from "../types";
+import { CategoryBadge } from "./ui/CategoryBadge";
+import { ContactTypeBadge } from "./ui/ContactTypeBadge";
+import { Pagination } from "./ui/Pagination";
+import { Sheet, SheetBody, SheetContent, SheetHeader, SheetTitle } from "./ui/Sheet";
+import { Skeleton } from "./ui/Skeleton";
 
 const PAGE_SIZE = 20;
 const ROW_HEIGHT = 64;
@@ -49,6 +50,7 @@ export function ContactTransactionsSheet({
   });
 
   const netAmount = contact ? Number(contact.totalDebit) - Number(contact.totalCredit) : 0;
+  const netOutflow = netAmount >= 0;
 
   return (
     <Sheet open={!!contact} onOpenChange={onOpenChange}>
@@ -60,16 +62,26 @@ export function ContactTransactionsSheet({
                 <SheetTitle>{contact.name}</SheetTitle>
                 <ContactTypeBadge type={contact.type} />
               </div>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-text-400">
-                <span>
-                  Net{" "}
-                  <span className={netAmount >= 0 ? "font-mono tabular text-rust-400" : "font-mono tabular text-moss-400"}>
-                    {netAmount >= 0 ? "−" : "+"}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-text-400">
+                <span className="inline-flex items-center gap-1.5">
+                  {netOutflow ? (
+                    <TrendingDown className="size-3.5 text-rust-400" strokeWidth={1.8} />
+                  ) : (
+                    <TrendingUp className="size-3.5 text-moss-400" strokeWidth={1.8} />
+                  )}
+                  <span
+                    className={cn(
+                      "font-mono tabular font-medium",
+                      netOutflow ? "text-rust-400" : "text-moss-400"
+                    )}
+                  >
+                    {netOutflow ? "−" : "+"}
                     {formatCurrency(Math.abs(netAmount), data?.primaryCurrency ?? "USD")}
                   </span>
+                  <span>net</span>
                 </span>
                 {contact.lastInteractionAt && (
-                  <span className="inline-flex items-center gap-1">
+                  <span className="inline-flex items-center gap-1.5">
                     <Calendar className="size-3.5" strokeWidth={1.8} />
                     Last {formatDate(contact.lastInteractionAt)}
                   </span>
@@ -81,35 +93,53 @@ export function ContactTransactionsSheet({
 
         <SheetBody ref={scrollRef}>
           {isLoading && (
-            <div className="flex flex-col gap-3 p-5">
+            <div>
               {Array.from({ length: 6 }).map((_, i) => (
-                <Skeleton key={i} className="h-14" />
+                <div
+                  key={i}
+                  className="flex flex-col justify-center gap-2 border-b border-line px-5"
+                  style={{ height: ROW_HEIGHT }}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-4 w-16" />
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <Skeleton className="h-3 w-20" />
+                    <Skeleton className="h-5 w-20 rounded-full" />
+                  </div>
+                </div>
               ))}
             </div>
           )}
 
           {data && transactions.length === 0 && (
-            <p className="p-5 text-sm text-text-400">No transactions with this contact yet.</p>
+            <p className="px-5 py-10 text-center text-sm text-text-400">
+              No transactions with this contact yet.
+            </p>
           )}
 
           {data && transactions.length > 0 && (
             <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
               {virtualizer.getVirtualItems().map((virtualRow) => {
                 const tx = transactions[virtualRow.index]!;
+                const isLast = virtualRow.index === transactions.length - 1;
                 return (
                   <div
                     key={tx.id}
-                    className="absolute left-0 top-0 w-full border-b border-line px-5 py-3"
+                    className={cn(
+                      "absolute left-0 top-0 w-full px-5 py-3 transition-colors hover:bg-ink-850",
+                      !isLast && "border-b border-line"
+                    )}
                     style={{ height: ROW_HEIGHT, transform: `translateY(${virtualRow.start}px)` }}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <span className="truncate text-sm font-medium text-text-100">{tx.description}</span>
                       <span
-                        className={
-                          tx.direction === "credit"
-                            ? "shrink-0 whitespace-nowrap font-mono tabular text-sm text-moss-400"
-                            : "shrink-0 whitespace-nowrap font-mono tabular text-sm text-rust-400"
-                        }
+                        className={cn(
+                          "shrink-0 whitespace-nowrap font-mono tabular text-sm",
+                          tx.direction === "credit" ? "text-moss-400" : "text-rust-400"
+                        )}
                       >
                         {tx.direction === "credit" ? "+" : "−"}
                         {formatCurrency(Number(tx.amount), tx.currency)}

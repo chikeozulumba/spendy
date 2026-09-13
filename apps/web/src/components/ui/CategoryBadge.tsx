@@ -1,4 +1,5 @@
 import { colorForCategory } from "../../palette";
+import { Badge } from "./Badge";
 
 // A rough personal-finance hierarchy, not just a distinct color per category:
 // essentials read as the most visually "solid" (filled pill), discretionary
@@ -19,33 +20,24 @@ function tierFor(category: string | null): Tier {
 
 export function CategoryBadge({ category }: { category: string | null }) {
   const tier = tierFor(category);
-  const color = colorForCategory(category);
 
   if (tier === "uncategorized") {
-    return (
-      <span className="inline-flex items-center rounded-full border border-dashed border-line-strong px-2.5 py-1 text-xs font-medium text-text-600">
-        Uncategorized
-      </span>
-    );
+    return <Badge variant="dashed">Uncategorized</Badge>;
   }
+
+  const color = colorForCategory(category);
 
   if (tier === "flow") {
     return (
-      <span
-        className="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium"
-        style={{ borderColor: `${color}66`, color }}
-      >
+      <Badge variant="outline" color={color}>
         {category}
-      </span>
+      </Badge>
     );
   }
 
   return (
-    <span
-      className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium"
-      style={{ backgroundColor: `${color}${tier === "essential" ? "26" : "14"}`, color }}
-    >
+    <Badge variant={tier === "essential" ? "solid" : "soft"} color={color}>
       {category}
-    </span>
+    </Badge>
   );
 }

@@ -3,15 +3,18 @@ import clsx from "clsx";
 import { formatCurrency } from "../lib/formatCurrency";
 import type { BudgetSummaryRow } from "../types";
 import { NumberInput } from "./ui/NumberInput";
+import { Badge, type BadgeTone } from "./ui/Badge";
 
-const TONE = {
-  over: { bar: "bg-rust-400", badge: "bg-rust-400/10 text-rust-400", label: "Over budget" },
-  near: { bar: "bg-gold-500", badge: "bg-gold-400/10 text-gold-400", label: "Near limit" },
-  ok: { bar: "bg-moss-400", badge: "bg-moss-400/10 text-moss-400", label: "On track" },
-  none: { bar: "bg-ink-800", badge: "bg-ink-850 text-text-400", label: "No budget set" },
-} as const;
+type Tone = "over" | "near" | "ok" | "none";
 
-function toneFor(row: BudgetSummaryRow): keyof typeof TONE {
+const TONE: Record<Tone, { bar: string; tone?: BadgeTone; label: string }> = {
+  over: { bar: "bg-rust-400", tone: "rust", label: "Over budget" },
+  near: { bar: "bg-gold-500", tone: "gold", label: "Near limit" },
+  ok: { bar: "bg-moss-400", tone: "moss", label: "On track" },
+  none: { bar: "bg-ink-800", label: "No budget set" },
+};
+
+function toneFor(row: BudgetSummaryRow): Tone {
   if (row.budgetAmount === null) return "none";
   const ratio = Number(row.actual) / Number(row.budgetAmount);
   if (ratio > 1) return "over";
@@ -47,9 +50,9 @@ export function BudgetRow({
             )}
           </p>
         </div>
-        <span className={clsx("rounded-full px-2.5 py-1 text-xs font-medium", TONE[tone].badge)}>
+        <Badge variant={TONE[tone].tone ? "soft" : "dashed"} tone={TONE[tone].tone}>
           {TONE[tone].label}
-        </span>
+        </Badge>
       </div>
 
       <div className="h-2 w-full overflow-hidden rounded-full bg-ink-850">
