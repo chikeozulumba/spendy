@@ -67,14 +67,26 @@ const columns = [
   }),
 ];
 
-export default function LedgerTable({ statements }: { statements: StatementSummary[] }) {
+export default function LedgerTable({
+  statements,
+  compact = false,
+}: {
+  statements: StatementSummary[];
+  /** Narrower presentation for the homepage's half-width ledger card — drops
+   * the least essential columns (currency, filed date) rather than cramming
+   * all six into half the space. */
+  compact?: boolean;
+}) {
   const navigate = useNavigate();
   const [sorting, setSorting] = useState<SortingState>([{ id: "createdAt", desc: true }]);
 
   const table = useReactTable({
     data: statements,
     columns,
-    state: { sorting },
+    state: {
+      sorting,
+      columnVisibility: compact ? { currency: false, createdAt: false } : {},
+    },
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),

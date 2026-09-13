@@ -90,6 +90,31 @@ export type ContactScope = "primary" | "all";
 export interface ContactsList {
   primaryCurrency: string;
   contacts: ContactRow[];
+  pagination: TransactionsPagination;
+}
+
+export interface ContactAnalyticsMonth {
+  month: number;
+  count: number;
+  totalDebit: string;
+  totalCredit: string;
+}
+
+export interface ContactAnalyticsTopContact {
+  id: string;
+  name: string;
+  type: ContactType;
+  transactionCount: number;
+  totalDebit: string;
+  totalCredit: string;
+}
+
+export interface ContactAnalytics {
+  year: number;
+  availableYears: number[];
+  primaryCurrency: string;
+  topContact: ContactAnalyticsTopContact | null;
+  monthly: ContactAnalyticsMonth[];
 }
 
 export interface ContactCategoryBreakdown {

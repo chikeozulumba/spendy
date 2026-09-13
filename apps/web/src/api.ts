@@ -2,6 +2,7 @@ import type {
   AllTransactions,
   Budget,
   BudgetSummary,
+  ContactAnalytics,
   ContactDetail,
   ContactScope,
   ContactsList,
@@ -228,11 +229,16 @@ export const api = {
       body: JSON.stringify({ endpoint }),
     }),
 
-  getContacts: (getToken: GetToken, input?: { sort?: ContactSort; q?: string; scope?: ContactScope }) => {
+  getContacts: (
+    getToken: GetToken,
+    input?: { sort?: ContactSort; q?: string; scope?: ContactScope; page?: number; pageSize?: number }
+  ) => {
     const params = new URLSearchParams();
     if (input?.sort) params.set("sort", input.sort);
     if (input?.q) params.set("q", input.q);
     if (input?.scope) params.set("scope", input.scope);
+    if (input?.page) params.set("page", String(input.page));
+    if (input?.pageSize) params.set("pageSize", String(input.pageSize));
     const query = params.toString();
     return request<ContactsList>(getToken, `/contacts${query ? `?${query}` : ""}`);
   },
@@ -242,6 +248,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify(input),
     }),
+
+  getContactAnalytics: (getToken: GetToken, year?: number) =>
+    request<ContactAnalytics>(getToken, `/contacts/analytics${year ? `?year=${year}` : ""}`),
 
   getContact: (getToken: GetToken, id: string, input?: { page?: number; pageSize?: number }) => {
     const params = new URLSearchParams();

@@ -17,6 +17,7 @@ import {
   HorizontalBarsSkeleton,
 } from "../components/skeletons/ChartSkeletons";
 import { EmptyLedgerState } from "../components/EmptyLedgerState";
+import { ExpectedInflowList } from "../components/ExpectedInflowList";
 import { formatCurrency } from "../lib/formatCurrency";
 
 const LEDGER_COLUMNS = [
@@ -210,9 +211,12 @@ export default function StatementsListPage() {
         <h1 className="text-xl font-bold tracking-tight text-text-100">Your ledger</h1>
       </div>
 
-      <Card className="p-0">
-        <LedgerTable statements={data} />
-      </Card>
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Card className="p-0">
+          <LedgerTable statements={data} compact />
+        </Card>
+        <ExpectedInflowList loans={loansQuery.data ?? []} currency={overviewQuery.data?.primaryCurrency ?? "USD"} />
+      </div>
     </div>
   );
 }

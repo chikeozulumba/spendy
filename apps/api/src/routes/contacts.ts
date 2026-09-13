@@ -30,8 +30,27 @@ contacts.get("/", async (c) => {
   const scopeParam = c.req.query("scope") ?? "primary";
   const scope = (VALID_SCOPES as readonly string[]).includes(scopeParam) ? (scopeParam as ScopeKey) : "primary";
   const q = c.req.query("q")?.trim();
+  const page = Math.max(1, Number(c.req.query("page") ?? 1) || 1);
+  const pageSize = Math.min(
+    MAX_PAGE_SIZE,
+    Math.max(1, Number(c.req.query("pageSize") ?? DEFAULT_PAGE_SIZE) || DEFAULT_PAGE_SIZE)
+  );
 
   const primaryCurrency = await primaryCurrencyFor(userId);
+
+  // Reused across the count and the paginated rows below, same reasoning as
+  // routes/transactions.ts — a postgres.js fragment captures its own
+  // parameters, so the filter logic only needs to be written once.
+  const whereClause = sql`
+    c.user_id = ${userId}
+    ${scope === "primary" ? sql`AND c.merged_into_id IS NULL` : sql``}
+    ${q ? sql`AND c.name ILIKE ${"%" + q + "%"}` : sql``}
+  `;
+
+  const [totalRow] = await sql<{ count: string }[]>`
+    SELECT COUNT(*) FROM contacts c WHERE ${whereClause}
+  `;
+  const total = Number(totalRow?.count ?? 0);
 
   // LEFT JOIN (not the INNER JOIN this used before merging existed) — a
   // contact that's been merged away typically has zero transactions still
@@ -50,11 +69,10 @@ contacts.get("/", async (c) => {
     FROM contacts c
     LEFT JOIN transactions t ON t.contact_id = c.id
     LEFT JOIN contacts m ON m.id = c.merged_into_id
-    WHERE c.user_id = ${userId}
-      ${scope === "primary" ? sql`AND c.merged_into_id IS NULL` : sql``}
-      ${q ? sql`AND c.name ILIKE ${"%" + q + "%"}` : sql``}
+    WHERE ${whereClause}
     GROUP BY c.id, c.name, c.type, c.merged_into_id, m.name
     ORDER BY ${SORT_CLAUSES[sort]}
+    LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}
   `;
 
   return c.json({
@@ -71,6 +89,12 @@ contacts.get("/", async (c) => {
       mergedIntoId: r.mergedIntoId,
       mergedIntoName: r.mergedIntoName,
     })),
+    pagination: {
+      page,
+      pageSize,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    },
   });
 });
 
@@ -132,6 +156,85 @@ contacts.post("/merge", async (c) => {
   });
 
   return c.json({ ok: true, primaryContactId, mergedCount: secondaryIds.length });
+});
+
+// The area chart on the Analytics tab: for a given year, finds the single
+// contact with the most transactions that year, then breaks their activity
+// down by month (Jan-Dec, zero-filled) so the chart has a full 12-point
+// x-axis regardless of which months actually had activity.
+contacts.get("/analytics", async (c) => {
+  const userId = c.get("userId");
+  const primaryCurrency = await primaryCurrencyFor(userId);
+
+  const yearRows = await sql<{ year: number }[]>`
+    SELECT DISTINCT EXTRACT(YEAR FROM t.date)::int AS year
+    FROM transactions t
+    JOIN contacts c ON c.id = t.contact_id
+    WHERE t.user_id = ${userId} AND c.merged_into_id IS NULL
+    ORDER BY year DESC
+  `;
+  const availableYears = yearRows.map((r) => r.year);
+
+  const yearParam = Number(c.req.query("year"));
+  const year =
+    Number.isFinite(yearParam) && yearParam > 0 ? yearParam : (availableYears[0] ?? new Date().getFullYear());
+
+  const [topContactRow] = await sql`
+    SELECT
+      c.id, c.name, c.type,
+      COUNT(t.id) AS transaction_count,
+      COALESCE(SUM(t.amount) FILTER (WHERE t.direction = 'debit'), 0) AS total_debit,
+      COALESCE(SUM(t.amount) FILTER (WHERE t.direction = 'credit'), 0) AS total_credit
+    FROM contacts c
+    JOIN transactions t ON t.contact_id = c.id
+    WHERE c.user_id = ${userId} AND c.merged_into_id IS NULL AND EXTRACT(YEAR FROM t.date) = ${year}
+    GROUP BY c.id, c.name, c.type
+    ORDER BY transaction_count DESC
+    LIMIT 1
+  `;
+
+  let monthly: { month: number; count: number; totalDebit: string; totalCredit: string }[] = [];
+  if (topContactRow) {
+    const monthRows = await sql<{ month: number; count: string; totalDebit: string; totalCredit: string }[]>`
+      SELECT
+        EXTRACT(MONTH FROM date)::int AS month,
+        COUNT(*) AS count,
+        COALESCE(SUM(amount) FILTER (WHERE direction = 'debit'), 0) AS total_debit,
+        COALESCE(SUM(amount) FILTER (WHERE direction = 'credit'), 0) AS total_credit
+      FROM transactions
+      WHERE contact_id = ${topContactRow.id} AND user_id = ${userId} AND EXTRACT(YEAR FROM date) = ${year}
+      GROUP BY month
+      ORDER BY month
+    `;
+    const byMonth = new Map(monthRows.map((r) => [Number(r.month), r]));
+    monthly = Array.from({ length: 12 }, (_, i) => {
+      const month = i + 1;
+      const row = byMonth.get(month);
+      return {
+        month,
+        count: row ? Number(row.count) : 0,
+        totalDebit: row?.totalDebit ?? "0",
+        totalCredit: row?.totalCredit ?? "0",
+      };
+    });
+  }
+
+  return c.json({
+    year,
+    availableYears: availableYears.length > 0 ? availableYears : [year],
+    primaryCurrency,
+    topContact: topContactRow
+      ? {
+          id: topContactRow.id,
+          name: topContactRow.name,
+          type: topContactRow.type,
+          transactionCount: Number(topContactRow.transactionCount),
+          totalDebit: topContactRow.totalDebit,
+          totalCredit: topContactRow.totalCredit,
+        }
+      : null,
+    monthly,
+  });
 });
 
 contacts.get("/:id", async (c) => {
