@@ -6,7 +6,9 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/api/package.json apps/api/package.json
 COPY apps/web/package.json apps/web/package.json
 RUN pnpm install --frozen-lockfile --filter @spendy/api...
+RUN touch .env
 
+COPY .env .env
 COPY db/migrations db/migrations
 COPY apps/api apps/api
 
