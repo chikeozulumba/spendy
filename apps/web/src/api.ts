@@ -9,6 +9,7 @@ import type {
   Insights,
   LoanRow,
   LoanStatus,
+  NotificationsResponse,
   PeriodComparison,
   Scope,
   SpendingByBankOverview,
@@ -202,6 +203,18 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(changes),
     }),
+
+  getNotifications: (getToken: GetToken) =>
+    request<NotificationsResponse>(getToken, "/notifications"),
+
+  markNotificationRead: (getToken: GetToken, id: string) =>
+    request(getToken, `/notifications/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ read: true }),
+    }),
+
+  markAllNotificationsRead: (getToken: GetToken) =>
+    request(getToken, "/notifications/read-all", { method: "POST" }),
 
   subscribeToPush: (getToken: GetToken, subscription: PushSubscriptionJSON) =>
     request(getToken, "/push/subscribe", {

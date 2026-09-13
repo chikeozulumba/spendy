@@ -12,7 +12,7 @@ import ContactsPage from "./pages/ContactsPage";
 import TelegramLinkPage from "./pages/TelegramLinkPage";
 import Logo from "./components/Logo";
 import { Button } from "./components/ui/Button";
-import { NotificationToggle } from "./components/NotificationToggle";
+import { NotificationsBell } from "./components/NotificationsBell";
 import { Popover, PopoverContent, PopoverTrigger } from "./components/ui/Popover";
 import { UploadModal } from "./components/UploadModal";
 import { UploadModalProvider, useUploadModal } from "./context/UploadModalContext";
@@ -105,7 +105,7 @@ function AppShell() {
           </div>
           <SignedIn>
             <div className="flex shrink-0 items-center gap-2 sm:gap-4">
-              <NotificationToggle />
+              <NotificationsBell />
               <Button onClick={openUploadModal} className="px-2.5 sm:px-4">
                 <Plus className="size-4" />
                 <span className="hidden sm:inline">Upload statement</span>

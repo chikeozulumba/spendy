@@ -386,10 +386,28 @@ async def overdue_loan_candidates() -> list[asyncpg.Record]:
     pool = await get_pool()
     return await pool.fetch(
         """
-        SELECT l.id, l.counterparty, l.amount, l.expected_repayment_date, u.telegram_chat_id
+        SELECT l.id, l.user_id, l.counterparty, l.amount, l.expected_repayment_date, u.telegram_chat_id
         FROM loan_book l
         JOIN users u ON u.id = l.user_id
         WHERE l.status = 'outstanding' AND l.expected_repayment_date < CURRENT_DATE
+        """
+    )
+
+
+async def due_today_loan_candidates() -> list[asyncpg.Record]:
+    """Outstanding loans whose expected repayment date is today and that
+    haven't been reminded yet — the on-the-day nudge, distinct from (and
+    sent before) the overdue_loan_candidates() sweep that fires the day
+    after, once the due date has actually passed."""
+    pool = await get_pool()
+    return await pool.fetch(
+        """
+        SELECT l.id, l.user_id, l.counterparty, l.amount, l.expected_repayment_date, u.telegram_chat_id
+        FROM loan_book l
+        JOIN users u ON u.id = l.user_id
+        WHERE l.status = 'outstanding'
+          AND l.expected_repayment_date = CURRENT_DATE
+          AND l.reminder_sent_at IS NULL
         """
     )
 
@@ -399,3 +417,34 @@ async def mark_loan_overdue(loan_id: str) -> None:
     await pool.execute(
         "UPDATE loan_book SET status = 'overdue', updated_at = now() WHERE id = $1", loan_id
     )
+
+
+async def mark_loan_reminder_sent(loan_id: str, telegram_message_id: int | None) -> None:
+    pool = await get_pool()
+    await pool.execute(
+        """
+        UPDATE loan_book SET reminder_sent_at = now(), reminder_telegram_message_id = $2
+        WHERE id = $1
+        """,
+        loan_id,
+        telegram_message_id,
+    )
+
+
+async def create_notification(
+    user_id: str, notif_type: str, title: str, body: str, loan_id: str | None = None
+) -> str:
+    pool = await get_pool()
+    record = await pool.fetchrow(
+        """
+        INSERT INTO notifications (user_id, type, title, body, loan_id)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING id
+        """,
+        user_id,
+        notif_type,
+        title,
+        body,
+        loan_id,
+    )
+    return str(record["id"])

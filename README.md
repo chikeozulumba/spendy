@@ -96,6 +96,14 @@ in each package is the current safety net.)
   finishes processing (`RETENTION_DAYS`), keeping only the extracted transaction
   data. Run `python -m app.retention_cleanup` on a schedule (e.g. Railway cron)
   — it's not wired up to run automatically yet.
+- **Loan reminders**: two scheduled jobs (also not wired up automatically —
+  run both via Railway cron, `loan_due_reminder_job` before `loan_overdue_job`
+  each day) send a Telegram reminder and write an in-app `notifications` row
+  when a tracked loan is due (`python -m app.loan_due_reminder_job`) and again
+  once it's actually overdue (`python -m app.loan_overdue_job`). Replying to
+  either reminder on Telegram — or just sending the next message, if there's
+  only one loan awaiting a reply — marks the loan repaid
+  (`services/telegram-bot/src/webhook.ts`).
 - **Per-user isolation**: every query in `apps/api` filters by the Clerk-verified
   `userId`; `pdf-service`'s `/process` endpoint is internal-only (shared-secret
   header) and only ever acts on the `statement_id` it's given by `apps/api`.

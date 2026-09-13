@@ -79,17 +79,18 @@ export default function ContactsPage() {
 
   return (
     <div className="flex flex-col gap-5 pb-16">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-text-100">
-            People & places{!isLoading && ` (${contacts.length})`}
-          </h1>
-          <p className="mt-1 text-sm text-text-400">
-            Everyone and everywhere your money has moved through — from bank transfers and
-            Spendybot captures alike. Select rows to merge duplicates together.
-          </p>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
+      <div>
+        <h1 className="text-xl font-bold tracking-tight text-text-100">
+          People & places{!isLoading && ` (${contacts.length})`}
+        </h1>
+        <p className="mt-1 text-sm text-text-400">
+          Everyone and everywhere your money has moved through — from bank transfers and
+          Spendybot captures alike. Select rows to merge duplicates together.
+        </p>
+      </div>
+
+      <Card className="p-0">
+        <div className="flex flex-col gap-2 border-b border-line p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="relative w-full sm:w-[220px]">
             <Search
               className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-text-600"
@@ -113,34 +114,34 @@ export default function ContactsPage() {
               </button>
             )}
           </div>
-          <Select value={scope} onValueChange={(v) => setScope(v as ContactScope)}>
-            <SelectTrigger className="w-full sm:w-[170px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {SCOPE_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={sort} onValueChange={(v) => setSort(v as ContactSort)}>
-            <SelectTrigger className="w-full sm:w-[200px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {SORT_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Select value={scope} onValueChange={(v) => setScope(v as ContactScope)}>
+              <SelectTrigger className="w-full sm:w-[170px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SCOPE_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={sort} onValueChange={(v) => setSort(v as ContactSort)}>
+              <SelectTrigger className="w-full sm:w-[200px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SORT_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-      </div>
 
-      <Card className="p-0">
         {isLoading && <TableSkeleton columns={COLUMNS} rows={8} />}
         {error && !data && <p className="p-5 text-rust-400">{(error as Error).message}</p>}
         {data && contacts.length === 0 && (

@@ -78,3 +78,7 @@ export const SheetBody = forwardRef<HTMLDivElement, ComponentProps<"div">>(funct
 ) {
   return <div ref={ref} className={cn("flex-1 overflow-y-auto", className)} {...props} />;
 });
+
+export function SheetFooter({ className, ...props }: ComponentProps<"div">) {
+  return <div className={cn("border-t border-line p-4", className)} {...props} />;
+}

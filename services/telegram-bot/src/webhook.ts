@@ -1,4 +1,11 @@
-import { sql, getCategories } from "./db.js";
+import {
+  sql,
+  getCategories,
+  findLoanByReminderMessage,
+  findPendingReminderLoans,
+  markLoanFulfilled,
+  type PendingLoan,
+} from "./db.js";
 import { downloadFile, sendMessage, type TelegramUpdate } from "./telegram.js";
 import { putEncrypted, storagePathFor } from "./storage.js";
 import { nextConversationTurn } from "./llm.js";
@@ -52,7 +59,8 @@ async function handleNewDocument(
   chatId: string,
   userId: string,
   fileId: string,
-  mimeType: string
+  mimeType: string,
+  caption?: string
 ): Promise<void> {
   const existing = await getSession(chatId);
   if (existing) {
@@ -68,10 +76,24 @@ async function handleNewDocument(
   const storagePath = storagePathFor(chatId, `receipt.${extension}`);
   await putEncrypted(storagePath, bytes, mimeType);
 
-  await createSession({ userId, chatId, storagePath, mimeType });
+  let session = await createSession({ userId, chatId, storagePath, mimeType });
+
+  // A caption sent alongside the file ("gave this to Chidi, due back
+  // Friday") is real information about what it is — seed it as the opening
+  // turn so the first conversational question (or, if the caption already
+  // covers everything, the finalize itself) accounts for it instead of
+  // asking things the caption already answered.
+  if (caption) {
+    const withCaptionTurn = await appendTurn(
+      chatId,
+      { role: "user", message: caption, ts: new Date().toISOString() },
+      false
+    );
+    if (withCaptionTurn) session = withCaptionTurn;
+  }
 
   const taxonomy = await getCategories();
-  const { message, ready } = await nextConversationTurn([], taxonomy);
+  const { message, ready } = await nextConversationTurn(session.turns, taxonomy);
   const withAgentTurn = await appendTurn(
     chatId,
     { role: "agent", message, ts: new Date().toISOString() },
@@ -81,6 +103,14 @@ async function handleNewDocument(
   // never be the reason a ready-to-log transaction doesn't get logged.
   if (ready && withAgentTurn) await finalizeSession(withAgentTurn);
   await trySendMessage(chatId, message);
+}
+
+async function confirmLoanFulfilled(chatId: string, loan: PendingLoan): Promise<void> {
+  await markLoanFulfilled(loan.id);
+  await trySendMessage(
+    chatId,
+    `Marked the loan of ${Number(loan.amount).toLocaleString()} to ${loan.counterparty ?? "them"} as repaid. Thanks for confirming!`
+  );
 }
 
 async function handleCancel(chatId: string): Promise<void> {
@@ -154,6 +184,17 @@ export async function handleUpdate(update: TelegramUpdate): Promise<void> {
     return;
   }
 
+  // An explicit reply to a loan reminder always wins, ahead of anything else
+  // going on (an active capture session included) — quoting a specific
+  // message is a deliberate, unambiguous action.
+  if (message.reply_to_message) {
+    const loan = await findLoanByReminderMessage(userId, message.reply_to_message.message_id);
+    if (loan) {
+      await confirmLoanFulfilled(chatId, loan);
+      return;
+    }
+  }
+
   if (text?.toLowerCase() === "/cancel") {
     await handleCancel(chatId);
     return;
@@ -164,11 +205,25 @@ export async function handleUpdate(update: TelegramUpdate): Promise<void> {
   if (document || photo) {
     const fileId = document?.file_id ?? photo!.file_id;
     const mimeType = document?.mime_type ?? "image/jpeg";
-    await handleNewDocument(chatId, userId, fileId, mimeType);
+    await handleNewDocument(chatId, userId, fileId, mimeType, message.caption?.trim());
     return;
   }
 
   if (text) {
+    // Not a reply, and not mid-capture: if there's exactly one loan
+    // awaiting a reminder reply, treat this plain message as the "next
+    // message" confirmation (Section: reply-or-next-message). With zero or
+    // more than one pending loan this is ambiguous, so it falls through to
+    // ordinary conversation handling instead of guessing.
+    const activeSession = await getSession(chatId);
+    if (!activeSession) {
+      const pending = await findPendingReminderLoans(userId);
+      if (pending.length === 1) {
+        await confirmLoanFulfilled(chatId, pending[0]!);
+        return;
+      }
+    }
+
     await handleConversationText(chatId, text);
   }
 }

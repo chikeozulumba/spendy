@@ -42,5 +42,13 @@ export interface TelegramUpdate {
     text?: string;
     document?: { file_id: string; file_name?: string; mime_type?: string };
     photo?: { file_id: string; file_size?: number }[];
+    // The caption attached to a photo/document upload (Telegram shows it as
+    // text under the file) — fed into the session as the opening turn so it
+    // informs categorization from the start, not just later Q&A answers.
+    caption?: string;
+    // Present when the user replies to a specific earlier message — used to
+    // recognize a reply to a loan due/overdue reminder as a repayment
+    // confirmation (see webhook.ts).
+    reply_to_message?: { message_id: number };
   };
 }

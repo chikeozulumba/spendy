@@ -11,6 +11,7 @@ import { telegram } from "./routes/telegram.js";
 import { loans } from "./routes/loans.js";
 import { push } from "./routes/push.js";
 import { contacts } from "./routes/contacts.js";
+import { notifications } from "./routes/notifications.js";
 
 const app = new Hono();
 
@@ -55,6 +56,7 @@ app.route("/telegram", telegram);
 app.route("/loans", loans);
 app.route("/push", push);
 app.route("/contacts", contacts);
+app.route("/notifications", notifications);
 
 serve({ fetch: app.fetch, port: env.port }, (info) => {
   console.log(`api listening on http://localhost:${info.port}`);

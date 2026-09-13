@@ -125,6 +125,21 @@ export interface ContactDetail {
   pagination: TransactionsPagination;
 }
 
+export interface NotificationItem {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  loanId: string | null;
+  readAt: string | null;
+  createdAt: string;
+}
+
+export interface NotificationsResponse {
+  notifications: NotificationItem[];
+  unreadCount: number;
+}
+
 export type LoanStatus = "outstanding" | "repaid" | "overdue" | "written_off";
 
 export interface LoanRow {
