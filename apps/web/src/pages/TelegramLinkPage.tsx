@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Check, Copy, MessageCircle, Send } from "lucide-react";
+import { Check, Copy, FileText, MessageCircle, Send } from "lucide-react";
 import { api } from "../api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
@@ -15,6 +15,7 @@ const DOCUMENT_COLUMNS = [
   { header: "Description", width: "70%" },
   { header: "Category", width: "45%" },
   { header: "Amount", width: "30%" },
+  { header: "", width: "20%" },
 ];
 
 const BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string | undefined;
@@ -57,6 +58,10 @@ export default function TelegramLinkPage() {
     },
   });
 
+  const openDocument = useMutation({
+    mutationFn: (transactionId: string) => api.openTelegramDocument(getToken, transactionId),
+  });
+
   const token = generate.data?.token;
   const startCommand = token ? `/start ${token}` : "";
   const deepLink = token && BOT_USERNAME ? `https://t.me/${BOT_USERNAME}?start=${token}` : null;
@@ -71,10 +76,10 @@ export default function TelegramLinkPage() {
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-text-100">Link Telegram</h1>
+        <h1 className="text-xl font-bold tracking-tight text-text-100">Link Spendybot</h1>
         <p className="mt-1 text-sm text-text-400">
           Capture cash payments, informal transfers, and loans your bank statements can't see —
-          send a photo or PDF to the bot and answer a couple of quick questions.
+          send a photo or PDF to Spendybot and answer a couple of quick questions.
         </p>
       </div>
 
@@ -84,8 +89,8 @@ export default function TelegramLinkPage() {
             <CardHeader>
               <CardTitle>Get a linking code</CardTitle>
               <CardDescription>
-                Generates a one-time code, valid for 15 minutes, that links this Telegram chat to
-                your Spendy account.
+                Generates a one-time code, valid for 15 minutes, that links this chat to your
+                Spendy account.
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
@@ -130,12 +135,12 @@ export default function TelegramLinkPage() {
                     <a href={deepLink} target="_blank" rel="noreferrer">
                       <Button className="w-full">
                         <Send className="size-4" />
-                        Open in Telegram
+                        Open Spendybot
                       </Button>
                     </a>
                   ) : (
                     <p className="text-sm text-text-400">
-                      Open Telegram, start a chat with your Spendy bot, and send the code above.
+                      Open Telegram, start a chat with Spendybot, and send the code above.
                     </p>
                   )}
 
@@ -157,7 +162,7 @@ export default function TelegramLinkPage() {
               {linked && (
                 <p className="inline-flex items-center gap-1.5 text-xs text-moss-400">
                   <Check className="size-3.5" strokeWidth={2} />
-                  This account is linked to a Telegram chat.
+                  This account is linked to Spendybot.
                 </p>
               )}
             </CardContent>
@@ -169,10 +174,10 @@ export default function TelegramLinkPage() {
             </CardHeader>
             <CardContent>
               <ol className="flex flex-col gap-2 text-sm text-text-400">
-                <li>1. Generate a code above and send it to the bot on Telegram.</li>
+                <li>1. Generate a code above and send it to Spendybot on Telegram.</li>
                 <li>2. Send a photo or PDF of a receipt, cash payment, or transfer any time.</li>
                 <li>
-                  3. The bot asks a couple of quick questions — what it was for, which bank (or
+                  3. Spendybot asks a couple of quick questions — what it was for, which bank (or
                   cash), and whether it's a loan.
                 </li>
                 <li>
@@ -187,11 +192,11 @@ export default function TelegramLinkPage() {
         <Card className="p-0">
           <CardHeader className="mb-0 border-b-0 px-5 pt-5 pb-4">
             <CardTitle>Documents you've sent</CardTitle>
-            <CardDescription>Everything logged via Telegram, newest first.</CardDescription>
+            <CardDescription>Everything logged via Spendybot, newest first.</CardDescription>
           </CardHeader>
           {!linked && (
             <p className="px-5 pb-5 text-sm text-text-400">
-              Link your account to see documents you've sent here.
+              Link Spendybot to see documents you've sent here.
             </p>
           )}
           {linked && documentsQuery.isLoading && (
@@ -211,6 +216,9 @@ export default function TelegramLinkPage() {
                     <th className="px-5 py-2.5 font-medium">Description</th>
                     <th className="px-5 py-2.5 font-medium">Category</th>
                     <th className="px-5 py-2.5 text-right font-medium">Amount</th>
+                    <th className="px-5 py-2.5 font-medium">
+                      <span className="sr-only">Document</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -231,6 +239,16 @@ export default function TelegramLinkPage() {
                       >
                         {row.direction === "credit" ? "+" : "−"}
                         {formatCurrency(Number(row.amount), row.currency)}
+                      </td>
+                      <td className="whitespace-nowrap px-5 py-3 text-right">
+                        <button
+                          onClick={() => openDocument.mutate(row.id)}
+                          disabled={openDocument.isPending && openDocument.variables === row.id}
+                          className="inline-flex items-center gap-1.5 text-sm text-text-400 transition-colors hover:text-text-100 disabled:pointer-events-none disabled:opacity-50"
+                        >
+                          <FileText className="size-3.5" strokeWidth={1.8} />
+                          View
+                        </button>
                       </td>
                     </tr>
                   ))}

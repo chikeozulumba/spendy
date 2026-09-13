@@ -20,7 +20,7 @@ const NAV_LINKS = [
   { to: "/transactions", label: "Transactions" },
   { to: "/budgets", label: "Budgets" },
   { to: "/compare", label: "Compare" },
-  { to: "/telegram", label: "Telegram" },
+  { to: "/telegram", label: "Spendybot" },
 ];
 
 export default function App() {

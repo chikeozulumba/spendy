@@ -210,4 +210,24 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ endpoint }),
     }),
+
+  // Binary response (the original receipt/document), not JSON — opened in a
+  // new tab as a blob URL rather than a plain <a href>, since the endpoint
+  // requires the same bearer-token auth as every other request here.
+  openTelegramDocument: async (getToken: GetToken, transactionId: string): Promise<void> => {
+    const token = await getToken();
+    const headers = new Headers();
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+
+    const res = await fetch(`${API_BASE}/telegram/documents/${transactionId}`, { headers });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error ?? `Request failed: ${res.status}`);
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  },
 };

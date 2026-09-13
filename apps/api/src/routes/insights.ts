@@ -151,7 +151,7 @@ insights.get("/spending-by-bank", async (c) => {
     WHERE t.user_id = ${userId}
       AND t.direction = 'debit'
       AND s.status = 'done'
-    GROUP BY bank_name, s.currency
+    GROUP BY s.bank_name, s.currency
     ORDER BY total DESC
   `;
 

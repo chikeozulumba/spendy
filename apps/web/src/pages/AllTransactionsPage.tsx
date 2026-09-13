@@ -49,7 +49,7 @@ export default function AllTransactionsPage() {
     setPage(1); // a new filter invalidates whatever page we were on
   }
 
-  const total = data?.pagination.total ?? 0;
+  const total = data?.pagination?.total ?? 0;
 
   return (
     <div className="flex flex-col gap-5">
@@ -59,7 +59,7 @@ export default function AllTransactionsPage() {
             Transactions{!isLoading && ` (${total})`}
           </h1>
           <p className="mt-1 text-sm text-text-400">
-            Every transaction across your statements and Telegram captures, newest first.
+            Every transaction across your statements and Spendybot captures, newest first.
           </p>
         </div>
         <Select value={category} onValueChange={chooseCategory}>
@@ -88,13 +88,13 @@ export default function AllTransactionsPage() {
             <StatCard
               icon={ArrowDownCircle}
               label={category === "all" ? "Total spent" : `Spent on ${category}`}
-              value={formatCurrency(Number(data?.metrics.totalDebit ?? 0), data?.primaryCurrency ?? "USD")}
+              value={formatCurrency(Number(data?.metrics?.totalDebit ?? 0), data?.primaryCurrency ?? "USD")}
               tone="rust"
             />
             <StatCard
               icon={ArrowUpCircle}
               label={category === "all" ? "Total received" : `Received via ${category}`}
-              value={formatCurrency(Number(data?.metrics.totalCredit ?? 0), data?.primaryCurrency ?? "USD")}
+              value={formatCurrency(Number(data?.metrics?.totalCredit ?? 0), data?.primaryCurrency ?? "USD")}
               tone="moss"
             />
           </>
@@ -107,14 +107,20 @@ export default function AllTransactionsPage() {
         {data && data.rows.length === 0 && (
           <p className="p-5 text-text-400">
             {category === "all"
-              ? "No transactions yet. Upload a statement or send a document to your Telegram bot to get started."
+              ? "No transactions yet. Upload a statement or send a document to Spendybot to get started."
               : `No transactions in "${category}" yet.`}
           </p>
         )}
         {data && data.rows.length > 0 && (
           <>
             <AllTransactionsTable transactions={data.rows} />
-            <Pagination page={data.pagination.page} totalPages={data.pagination.totalPages} onChange={setPage} />
+            {data.pagination && (
+              <Pagination
+                page={data.pagination.page}
+                totalPages={data.pagination.totalPages}
+                onChange={setPage}
+              />
+            )}
           </>
         )}
       </Card>

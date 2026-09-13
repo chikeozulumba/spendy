@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { Hono } from "hono";
 import { sql } from "../db.js";
+import { fetchDecrypted } from "../storage.js";
 import { requireAuth } from "../auth.js";
 
 export const telegram = new Hono();
@@ -32,4 +33,41 @@ telegram.get("/status", async (c) => {
     SELECT telegram_chat_id FROM users WHERE id = ${userId}
   `;
   return c.json({ linked: !!user?.telegramChatId });
+});
+
+const EXTENSION_CONTENT_TYPES: Record<string, string> = {
+  pdf: "application/pdf",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+};
+
+// Lets a user view the original document behind a Telegram capture — gated
+// by looking the transaction up through telegram_sessions_log's own
+// user_id, not just trusting whatever transaction id is passed in.
+telegram.get("/documents/:transactionId", async (c) => {
+  const userId = c.get("userId");
+  const transactionId = c.req.param("transactionId");
+
+  const [log] = await sql<{ storagePath: string | null }[]>`
+    SELECT storage_path FROM telegram_sessions_log
+    WHERE resulting_transaction_id = ${transactionId} AND user_id = ${userId}
+  `;
+  if (!log?.storagePath) return c.json({ error: "Not found" }, 404);
+
+  const extension = log.storagePath.split(".").pop()?.toLowerCase() ?? "";
+  const contentType = EXTENSION_CONTENT_TYPES[extension] ?? "application/octet-stream";
+
+  try {
+    const bytes = await fetchDecrypted(log.storagePath);
+    return new Response(new Uint8Array(bytes), {
+      headers: {
+        "Content-Type": contentType,
+        "Content-Disposition": "inline",
+        "Cache-Control": "private, max-age=3600",
+      },
+    });
+  } catch {
+    return c.json({ error: "Document is no longer available" }, 404);
+  }
 });
