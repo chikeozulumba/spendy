@@ -9,6 +9,9 @@ contacts.use("*", requireAuth);
 const VALID_SORTS = ["recent", "amount", "frequency"] as const;
 type SortKey = (typeof VALID_SORTS)[number];
 
+const DEFAULT_PAGE_SIZE = 30;
+const MAX_PAGE_SIZE = 100;
+
 const SORT_CLAUSES: Record<SortKey, ReturnType<typeof sql>> = {
   recent: sql`last_interaction_at DESC NULLS LAST`,
   amount: sql`total_amount DESC`,
@@ -59,6 +62,11 @@ contacts.get("/", async (c) => {
 contacts.get("/:id", async (c) => {
   const userId = c.get("userId");
   const id = c.req.param("id");
+  const page = Math.max(1, Number(c.req.query("page") ?? 1) || 1);
+  const pageSize = Math.min(
+    MAX_PAGE_SIZE,
+    Math.max(1, Number(c.req.query("pageSize") ?? DEFAULT_PAGE_SIZE) || DEFAULT_PAGE_SIZE)
+  );
 
   const [contact] = await sql`
     SELECT id, name, type, created_at FROM contacts WHERE id = ${id} AND user_id = ${userId}
@@ -87,6 +95,8 @@ contacts.get("/:id", async (c) => {
     LIMIT 5
   `;
 
+  const transactionCount = Number(metricsRow?.transactionCount ?? 0);
+
   const transactions = await sql`
     SELECT
       t.id, t.date, t.description, t.amount, t.direction, t.category, t.source,
@@ -96,13 +106,14 @@ contacts.get("/:id", async (c) => {
     LEFT JOIN statements s ON s.id = t.statement_id
     WHERE t.contact_id = ${id} AND t.user_id = ${userId}
     ORDER BY t.date DESC, t.created_at DESC
+    LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}
   `;
 
   return c.json({
     contact: { id: contact.id, name: contact.name, type: contact.type, createdAt: contact.createdAt },
     primaryCurrency,
     metrics: {
-      transactionCount: Number(metricsRow?.transactionCount ?? 0),
+      transactionCount,
       totalDebit: metricsRow?.totalDebit ?? "0",
       totalCredit: metricsRow?.totalCredit ?? "0",
       firstInteractionAt: metricsRow?.firstInteractionAt ?? null,
@@ -114,5 +125,11 @@ contacts.get("/:id", async (c) => {
       total: r.total,
     })),
     transactions,
+    pagination: {
+      page,
+      pageSize,
+      total: transactionCount,
+      totalPages: Math.max(1, Math.ceil(transactionCount / pageSize)),
+    },
   });
 });

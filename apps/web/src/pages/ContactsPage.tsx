@@ -1,11 +1,11 @@
 import { useAuth } from "@clerk/clerk-react";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Users } from "lucide-react";
 import { api } from "../api";
 import { Card } from "../components/ui/Card";
 import { ContactTypeBadge } from "../components/ui/ContactTypeBadge";
+import { ContactTransactionsSheet } from "../components/ContactTransactionsSheet";
 import { TableSkeleton } from "../components/skeletons/TableSkeleton";
 import {
   SelectRoot as Select,
@@ -16,13 +16,13 @@ import {
 } from "../components/ui/Select";
 import { formatCurrency } from "../lib/formatCurrency";
 import { formatDate } from "../lib/formatDate";
-import type { ContactSort } from "../types";
+import type { ContactRow, ContactSort } from "../types";
 
 const COLUMNS = [
   { header: "Name", width: "70%" },
   { header: "Type", width: "35%" },
   { header: "Transactions", width: "35%" },
-  { header: "Sent / received", width: "45%" },
+  { header: "Net flow", width: "45%" },
   { header: "Last interaction", width: "40%" },
 ];
 
@@ -34,8 +34,8 @@ const SORT_OPTIONS: { value: ContactSort; label: string }[] = [
 
 export default function ContactsPage() {
   const { getToken } = useAuth();
-  const navigate = useNavigate();
   const [sort, setSort] = useState<ContactSort>("recent");
+  const [selectedContact, setSelectedContact] = useState<ContactRow | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["contacts", "list", sort],
@@ -100,40 +100,47 @@ export default function ContactsPage() {
               ))}
             </div>
             <div>
-              {contacts.map((contact) => (
-                <button
-                  key={contact.id}
-                  onClick={() => navigate(`/contacts/${contact.id}`)}
-                  className="grid w-full items-center border-b border-line px-5 py-3 text-left text-sm last:border-b-0 hover:bg-ink-850"
-                  style={{ gridTemplateColumns: "1.6fr 130px 130px 160px 140px" }}
-                >
-                  <span className="truncate font-medium text-text-100">{contact.name}</span>
-                  <span>
-                    <ContactTypeBadge type={contact.type} />
-                  </span>
-                  <span className="font-mono tabular text-text-400">{contact.transactionCount}</span>
-                  <span className="whitespace-nowrap font-mono tabular">
-                    <span className="text-rust-400">
-                      {formatCurrency(Number(contact.totalDebit), data.primaryCurrency)}
+              {contacts.map((contact) => {
+                const net = Number(contact.totalDebit) - Number(contact.totalCredit);
+                return (
+                  <button
+                    key={contact.id}
+                    onClick={() => setSelectedContact(contact)}
+                    className="grid w-full items-center border-b border-line px-5 py-3 text-left text-sm last:border-b-0 hover:bg-ink-850"
+                    style={{ gridTemplateColumns: "1.6fr 130px 130px 160px 140px" }}
+                  >
+                    <span className="truncate font-medium text-text-100">{contact.name}</span>
+                    <span>
+                      <ContactTypeBadge type={contact.type} />
                     </span>
-                    {Number(contact.totalCredit) > 0 && (
-                      <span className="text-text-400">
-                        {" / "}
-                        <span className="text-moss-400">
-                          {formatCurrency(Number(contact.totalCredit), data.primaryCurrency)}
-                        </span>
-                      </span>
-                    )}
-                  </span>
-                  <span className="whitespace-nowrap text-text-400">
-                    {contact.lastInteractionAt ? formatDate(contact.lastInteractionAt) : "—"}
-                  </span>
-                </button>
-              ))}
+                    <span className="font-mono tabular text-text-400">{contact.transactionCount}</span>
+                    <span
+                      className={
+                        net >= 0
+                          ? "whitespace-nowrap font-mono tabular text-rust-400"
+                          : "whitespace-nowrap font-mono tabular text-moss-400"
+                      }
+                    >
+                      {net >= 0 ? "−" : "+"}
+                      {formatCurrency(Math.abs(net), data.primaryCurrency)}
+                    </span>
+                    <span className="whitespace-nowrap text-text-400">
+                      {contact.lastInteractionAt ? formatDate(contact.lastInteractionAt) : "—"}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
       </Card>
+
+      <ContactTransactionsSheet
+        contact={selectedContact}
+        onOpenChange={(open) => {
+          if (!open) setSelectedContact(null);
+        }}
+      />
     </div>
   );
 }

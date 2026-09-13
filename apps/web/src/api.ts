@@ -217,8 +217,13 @@ export const api = {
   getContacts: (getToken: GetToken, sort?: ContactSort) =>
     request<ContactsList>(getToken, `/contacts${sort ? `?sort=${sort}` : ""}`),
 
-  getContact: (getToken: GetToken, id: string) =>
-    request<ContactDetail>(getToken, `/contacts/${id}`),
+  getContact: (getToken: GetToken, id: string, input?: { page?: number; pageSize?: number }) => {
+    const params = new URLSearchParams();
+    if (input?.page) params.set("page", String(input.page));
+    if (input?.pageSize) params.set("pageSize", String(input.pageSize));
+    const query = params.toString();
+    return request<ContactDetail>(getToken, `/contacts/${id}${query ? `?${query}` : ""}`);
+  },
 
   // Binary response (the original receipt/document), not JSON — opened in a
   // new tab as a blob URL rather than a plain <a href>, since the endpoint

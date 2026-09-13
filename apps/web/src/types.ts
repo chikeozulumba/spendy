@@ -119,6 +119,7 @@ export interface ContactDetail {
   };
   topCategories: ContactCategoryBreakdown[];
   transactions: ContactDetailTransaction[];
+  pagination: TransactionsPagination;
 }
 
 export type LoanStatus = "outstanding" | "repaid" | "overdue" | "written_off";
