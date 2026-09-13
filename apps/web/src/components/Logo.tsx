@@ -1,4 +1,4 @@
-import clsx from "clsx";
+import { cn } from "../lib/cn";
 
 /**
  * The mark reads left to right as a small spend line — a dip, a bump, a dip —
@@ -50,7 +50,7 @@ export default function Logo({
   className?: string;
 }) {
   return (
-    <span className={clsx("inline-flex items-center gap-2.5", className)}>
+    <span className={cn("inline-flex items-center gap-2.5", className)}>
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-line bg-ink-900 text-moss-400">
         <LogoMark className="h-[18px] w-[18px]" />
       </span>

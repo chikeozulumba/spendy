@@ -22,4 +22,8 @@ export const env = {
 
   pdfServiceUrl: required("PDF_SERVICE_URL"),
   pdfServiceTimeoutMs: Number(process.env.PDF_SERVICE_TIMEOUT_MS ?? 55000),
+
+  vapidPublicKey: required("VAPID_PUBLIC_KEY"),
+  vapidPrivateKey: required("VAPID_PRIVATE_KEY"),
+  vapidSubject: required("VAPID_SUBJECT"),
 };

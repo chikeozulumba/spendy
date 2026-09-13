@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { sql } from "../db.js";
 import { putEncrypted, storagePathFor, deleteObject } from "../storage.js";
 import { triggerProcessing } from "../lib/internalClient.js";
+import { sendPushToUser } from "../lib/push.js";
 import { requireAuth } from "../auth.js";
 
 export const statements = new Hono();
@@ -249,10 +250,21 @@ async function runProcessing(statementId: string, jobId: string, password: strin
 
   const result = await triggerProcessing(statementId, password);
 
+  const [statement] = await sql<{ userId: string; originalFilename: string }[]>`
+    SELECT user_id, original_filename FROM statements WHERE id = ${statementId}
+  `;
+
   if (result.ok) {
     await sql`UPDATE jobs SET status = 'succeeded' WHERE id = ${jobId}`;
     // pdf-service itself sets status='done' once it has written transactions;
     // this is just a safety net in case it crashed after responding ok=true.
+    if (statement) {
+      await sendPushToUser(statement.userId, {
+        title: "Statement processed",
+        body: `${statement.originalFilename} is done — your transactions are ready.`,
+        url: `/statements/${statementId}`,
+      });
+    }
   } else {
     await sql`UPDATE jobs SET status = 'failed', last_error = ${result.error ?? "unknown error"} WHERE id = ${jobId}`;
     await sql`
@@ -260,6 +272,13 @@ async function runProcessing(statementId: string, jobId: string, password: strin
       SET status = 'failed', failure_reason = ${result.error ?? "unknown error"}
       WHERE id = ${statementId} AND status != 'done'
     `;
+    if (statement) {
+      await sendPushToUser(statement.userId, {
+        title: "Statement processing failed",
+        body: `${statement.originalFilename}: ${result.error ?? "unknown error"}`,
+        url: `/statements/${statementId}`,
+      });
+    }
   }
 }
 

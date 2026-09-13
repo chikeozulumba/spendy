@@ -169,4 +169,16 @@ export const api = {
     request<{ token: string; expiresInMinutes: number }>(getToken, "/telegram/link-token", {
       method: "POST",
     }),
+
+  subscribeToPush: (getToken: GetToken, subscription: PushSubscriptionJSON) =>
+    request(getToken, "/push/subscribe", {
+      method: "POST",
+      body: JSON.stringify(subscription),
+    }),
+
+  unsubscribeFromPush: (getToken: GetToken, endpoint: string) =>
+    request(getToken, "/push/unsubscribe", {
+      method: "POST",
+      body: JSON.stringify({ endpoint }),
+    }),
 };

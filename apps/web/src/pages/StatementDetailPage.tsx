@@ -122,8 +122,8 @@ export default function StatementDetailPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <Card className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
+      <Card className="flex flex-col items-start gap-4 sm:flex-row sm:justify-between">
+        <div className="min-w-0 w-full sm:w-auto">
           <h1 className="truncate font-mono text-lg font-semibold text-text-100">
             {statement.originalFilename}
           </h1>
@@ -145,7 +145,7 @@ export default function StatementDetailPage() {
             <StatusBadge status={statement.status} />
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto">
           {isDone &&
             insightsQuery.data &&
             insightsQuery.data.reconciliationOk !== null && (

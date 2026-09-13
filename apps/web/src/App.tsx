@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/clerk-react";
 import { Link, Route, Routes, useLocation } from "react-router-dom";
-import { Plus } from "lucide-react";
+import { Menu, Plus } from "lucide-react";
 import clsx from "clsx";
 import StatementsListPage from "./pages/StatementsListPage";
 import StatementDetailPage from "./pages/StatementDetailPage";
@@ -9,6 +10,8 @@ import ComparePage from "./pages/ComparePage";
 import TelegramLinkPage from "./pages/TelegramLinkPage";
 import Logo from "./components/Logo";
 import { Button } from "./components/ui/Button";
+import { NotificationToggle } from "./components/NotificationToggle";
+import { Popover, PopoverContent, PopoverTrigger } from "./components/ui/Popover";
 import { UploadModal } from "./components/UploadModal";
 import { UploadModalProvider, useUploadModal } from "./context/UploadModalContext";
 
@@ -29,17 +32,56 @@ export default function App() {
 function AppShell() {
   const location = useLocation();
   const { open: openUploadModal } = useUploadModal();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="border-b border-line bg-white px-6 py-4">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-6">
-          <div className="flex items-center gap-8">
-            <Link to="/" className="transition-opacity hover:opacity-80">
-              <Logo />
-            </Link>
+      <header className="border-b border-line bg-white px-4 py-3 sm:px-6 sm:py-4">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 sm:gap-6">
+          <div className="flex min-w-0 items-center gap-8">
             <SignedIn>
-              <nav className="flex items-center gap-5">
+              <Popover open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-line text-text-400 hover:border-line-strong hover:text-text-100 sm:hidden"
+                    aria-label="Open menu"
+                  >
+                    <Menu className="size-4" strokeWidth={1.8} />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-48 p-1">
+                  <nav className="flex flex-col">
+                    {NAV_LINKS.map((link) => (
+                      <Link
+                        key={link.to}
+                        to={link.to}
+                        onClick={() => setMobileNavOpen(false)}
+                        className={clsx(
+                          "rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                          location.pathname === link.to
+                            ? "bg-ink-850 text-text-100"
+                            : "text-text-400 hover:bg-ink-850 hover:text-text-100"
+                        )}
+                      >
+                        {link.label}
+                      </Link>
+                    ))}
+                  </nav>
+                </PopoverContent>
+              </Popover>
+            </SignedIn>
+
+            <Link to="/" className="min-w-0 shrink-0 transition-opacity hover:opacity-80">
+              <span className="sm:hidden">
+                <Logo showWordmark={false} />
+              </span>
+              <span className="hidden sm:inline-flex">
+                <Logo />
+              </span>
+            </Link>
+
+            <SignedIn>
+              <nav className="hidden items-center gap-5 sm:flex">
                 {NAV_LINKS.map((link) => (
                   <Link
                     key={link.to}
@@ -58,10 +100,11 @@ function AppShell() {
             </SignedIn>
           </div>
           <SignedIn>
-            <div className="flex items-center gap-4">
-              <Button onClick={openUploadModal}>
+            <div className="flex shrink-0 items-center gap-2 sm:gap-4">
+              <NotificationToggle />
+              <Button onClick={openUploadModal} className="px-2.5 sm:px-4">
                 <Plus className="size-4" />
-                Upload statement
+                <span className="hidden sm:inline">Upload statement</span>
               </Button>
               <UserButton afterSignOutUrl="/" />
             </div>
