@@ -1,23 +1,29 @@
-import { useMemo } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, FileStack, HandCoins, Wallet } from "lucide-react";
+import { useMemo } from "react";
 import { api } from "../api";
-import LedgerTable from "../components/LedgerTable";
-import SpendingByCategoryChart from "../components/SpendingByCategoryChart";
-import SpendingByBankChart from "../components/SpendingByBankChart";
 import CategoryAmountBarChart from "../components/CategoryAmountBarChart";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/Card";
-import { StatCard } from "../components/ui/StatCard";
-import { StatCardSkeleton } from "../components/skeletons/StatCardSkeleton";
-import { TableSkeleton } from "../components/skeletons/TableSkeleton";
+import { EmptyLedgerState } from "../components/EmptyLedgerState";
+import { ExpectedInflowList } from "../components/ExpectedInflowList";
+import LedgerTable from "../components/LedgerTable";
 import {
   AreaChartSkeleton,
   DonutChartSkeleton,
   HorizontalBarsSkeleton,
 } from "../components/skeletons/ChartSkeletons";
-import { EmptyLedgerState } from "../components/EmptyLedgerState";
-import { ExpectedInflowList } from "../components/ExpectedInflowList";
+import { StatCardSkeleton } from "../components/skeletons/StatCardSkeleton";
+import { TableSkeleton } from "../components/skeletons/TableSkeleton";
+import SpendingByBankChart from "../components/SpendingByBankChart";
+import SpendingByCategoryChart from "../components/SpendingByCategoryChart";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/Card";
+import { StatCard } from "../components/ui/StatCard";
 import { formatCurrency } from "../lib/formatCurrency";
 
 const LEDGER_COLUMNS = [
@@ -63,23 +69,28 @@ export default function StatementsListPage() {
       .reduce((sum, r) => sum + Number(r.total), 0);
 
     const reconciled = (data ?? []).filter(
-      (s) => s.status === "done" && s.reconciliationOk !== null
+      (s) => s.status === "done" && s.reconciliationOk !== null,
     );
     const reconciliationRate =
       reconciled.length === 0
         ? null
         : Math.round(
-            (reconciled.filter((s) => s.reconciliationOk).length / reconciled.length) * 100
+            (reconciled.filter((s) => s.reconciliationOk).length /
+              reconciled.length) *
+              100,
           );
 
     const expectedRepayment = (loansQuery.data ?? [])
-      .filter((loan) => loan.status === "outstanding" || loan.status === "overdue")
+      .filter(
+        (loan) => loan.status === "outstanding" || loan.status === "overdue",
+      )
       .reduce((sum, loan) => sum + Number(loan.amount), 0);
 
     return {
       totalSpent: formatCurrency(totalSpent, currency),
       statementCount: data?.length ?? 0,
-      reconciliationRate: reconciliationRate === null ? "—" : `${reconciliationRate}%`,
+      reconciliationRate:
+        reconciliationRate === null ? "—" : `${reconciliationRate}%`,
       expectedRepayment: formatCurrency(expectedRepayment, currency),
     };
   }, [data, overviewQuery.data, loansQuery.data]);
@@ -92,7 +103,10 @@ export default function StatementsListPage() {
     const totals = new Map<string, number>();
     for (const row of overviewQuery.data?.rows ?? []) {
       if (row.currency !== currency) continue;
-      totals.set(row.category, (totals.get(row.category) ?? 0) + Number(row.total));
+      totals.set(
+        row.category,
+        (totals.get(row.category) ?? 0) + Number(row.total),
+      );
     }
     return Array.from(totals, ([category, total]) => ({ category, total }));
   }, [overviewQuery.data]);
@@ -126,7 +140,12 @@ export default function StatementsListPage() {
   return (
     <div>
       <div className="mb-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={Wallet} label="Total spent" value={stats.totalSpent} tone="moss" />
+        <StatCard
+          icon={Wallet}
+          label="Total spent"
+          value={stats.totalSpent}
+          tone="moss"
+        />
         <StatCard
           icon={FileStack}
           label="Statements filed"
@@ -178,7 +197,9 @@ export default function StatementsListPage() {
           <Card className="flex flex-col">
             <CardHeader className="items-center pb-4">
               <CardTitle>Spending by bank</CardTitle>
-              <CardDescription>Total spend across all your statements</CardDescription>
+              <CardDescription>
+                Total spend across all your statements
+              </CardDescription>
             </CardHeader>
             <CardContent className="flex-1">
               <DonutChartSkeleton />
@@ -198,7 +219,9 @@ export default function StatementsListPage() {
           <Card>
             <CardHeader>
               <CardTitle>Spending by category</CardTitle>
-              <CardDescription>Total spend per category across all statements</CardDescription>
+              <CardDescription>
+                Total spend per category across all statements
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <HorizontalBarsSkeleton />
@@ -207,15 +230,14 @@ export default function StatementsListPage() {
         )}
       </div>
 
-      <div className="mb-5">
-        <h1 className="text-xl font-bold tracking-tight text-text-100">Your ledger</h1>
-      </div>
-
       <div className="grid gap-5 lg:grid-cols-2">
         <Card className="p-0">
           <LedgerTable statements={data} compact />
         </Card>
-        <ExpectedInflowList loans={loansQuery.data ?? []} currency={overviewQuery.data?.primaryCurrency ?? "USD"} />
+        <ExpectedInflowList
+          loans={loansQuery.data ?? []}
+          currency={overviewQuery.data?.primaryCurrency ?? "USD"}
+        />
       </div>
     </div>
   );
