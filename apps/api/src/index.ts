@@ -25,6 +25,27 @@ app.use(
 
 app.get("/health", (c) => c.json({ ok: true }));
 
+// Log every request's outcome (method, path, status, duration) so a failed
+// upload shows up in the deploy logs even when the handler itself never gets
+// far enough to log anything of its own (auth rejection, routing miss, etc).
+app.use("*", async (c, next) => {
+  const start = Date.now();
+  await next();
+  const ms = Date.now() - start;
+  const level = c.res.status >= 500 ? "error" : c.res.status >= 400 ? "warn" : "log";
+  console[level](`[http] ${c.req.method} ${c.req.path} -> ${c.res.status} (${ms}ms)`);
+});
+
+// Without this, an exception thrown inside a route handler (a failed S3 call,
+// a DB error, anything not already caught locally) is swallowed by Hono's
+// default error handling and returns a bare 500 with nothing in the logs —
+// which is exactly the kind of failure that's invisible in production and
+// impossible to diagnose from a bug report alone.
+app.onError((err, c) => {
+  console.error(`[http] Unhandled error on ${c.req.method} ${c.req.path}:`, err);
+  return c.json({ error: "Internal server error" }, 500);
+});
+
 app.route("/statements", statements);
 app.route("/transactions", transactions);
 app.route("/insights", insights);
@@ -37,4 +58,7 @@ app.route("/contacts", contacts);
 
 serve({ fetch: app.fetch, port: env.port }, (info) => {
   console.log(`api listening on http://localhost:${info.port}`);
+  console.log(
+    `[config] pdfServiceUrl=${env.pdfServiceUrl} storageEndpoint=${env.storageEndpoint} storageBucket=${env.storageBucket} storageForcePathStyle=${env.storageForcePathStyle} pdfServiceTimeoutMs=${env.pdfServiceTimeoutMs}`
+  );
 });

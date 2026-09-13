@@ -32,6 +32,10 @@ statements.post("/", async (c) => {
     return c.json({ error: "File too large (25MB max)" }, 400);
   }
 
+  console.log(
+    `[statements] upload received: user=${userId} file=${file.name} size=${file.size} bank=${bankName ?? "unset"}`
+  );
+
   const bytes = Buffer.from(await file.arrayBuffer());
   const fileHash = createHash("sha256").update(bytes).digest("hex");
 
@@ -43,6 +47,7 @@ statements.post("/", async (c) => {
     WHERE user_id = ${userId} AND file_hash = ${fileHash}
   `;
   if (existing) {
+    console.log(`[statements] upload rejected: duplicate of ${existing.id} (user=${userId})`);
     return c.json(
       {
         error: `This file was already uploaded as "${existing.originalFilename}"`,
@@ -59,10 +64,12 @@ statements.post("/", async (c) => {
   `;
   if (!statement) throw new Error("Failed to create statement row");
   const statementId = statement.id;
+  console.log(`[statements] statement row created: id=${statementId} user=${userId}`);
 
   const storagePath = storagePathFor(statementId, "original.pdf");
   await putEncrypted(storagePath, bytes);
   await sql`UPDATE statements SET storage_path = ${storagePath} WHERE id = ${statementId}`;
+  console.log(`[statements] statement=${statementId} original PDF stored at ${storagePath}`);
 
   const [job] = await sql<{ id: string }[]>`
     INSERT INTO jobs (statement_id, status) VALUES (${statementId}, 'pending')
@@ -74,7 +81,18 @@ statements.post("/", async (c) => {
   // soon as the file is stored, and the client polls GET /statements/:id for
   // status. `password` is passed only in-memory to this one call — never
   // persisted to `jobs` or `statements`.
-  void runProcessing(statementId, job.id, typeof password === "string" ? password : undefined);
+  //
+  // This runs detached from the request/response cycle — if it throws
+  // anything not already caught inside runProcessing, that becomes an
+  // unhandled promise rejection with no HTTP response to attach it to, which
+  // depending on the Node runtime's config can silently vanish (or, worse,
+  // crash the process). runProcessing has its own top-level try/catch for
+  // exactly this reason; this catch here is a last-resort backstop.
+  void runProcessing(statementId, job.id, typeof password === "string" ? password : undefined).catch(
+    (err) => {
+      console.error(`[statements] runProcessing threw unexpectedly for statement=${statementId}:`, err);
+    }
+  );
 
   return c.json({ id: statementId, status: "uploaded" }, 201);
 });
@@ -245,40 +263,62 @@ statements.get("/:id/insights", async (c) => {
 });
 
 async function runProcessing(statementId: string, jobId: string, password: string | undefined) {
-  await sql`UPDATE jobs SET status = 'running', attempts = attempts + 1 WHERE id = ${jobId}`;
-  await sql`UPDATE statements SET status = 'processing' WHERE id = ${statementId}`;
+  try {
+    await sql`UPDATE jobs SET status = 'running', attempts = attempts + 1 WHERE id = ${jobId}`;
+    await sql`UPDATE statements SET status = 'processing' WHERE id = ${statementId}`;
+    console.log(`[statements] statement=${statementId} job=${jobId} handed off to pdf-service`);
 
-  const result = await triggerProcessing(statementId, password);
+    const result = await triggerProcessing(statementId, password);
 
-  const [statement] = await sql<{ userId: string; originalFilename: string }[]>`
-    SELECT user_id, original_filename FROM statements WHERE id = ${statementId}
-  `;
-
-  if (result.ok) {
-    await sql`UPDATE jobs SET status = 'succeeded' WHERE id = ${jobId}`;
-    // pdf-service itself sets status='done' once it has written transactions;
-    // this is just a safety net in case it crashed after responding ok=true.
-    if (statement) {
-      await sendPushToUser(statement.userId, {
-        title: "Statement processed",
-        body: `${statement.originalFilename} is done — your transactions are ready.`,
-        url: `/statements/${statementId}`,
-      });
-    }
-  } else {
-    await sql`UPDATE jobs SET status = 'failed', last_error = ${result.error ?? "unknown error"} WHERE id = ${jobId}`;
-    await sql`
-      UPDATE statements
-      SET status = 'failed', failure_reason = ${result.error ?? "unknown error"}
-      WHERE id = ${statementId} AND status != 'done'
+    const [statement] = await sql<{ userId: string; originalFilename: string }[]>`
+      SELECT user_id, original_filename FROM statements WHERE id = ${statementId}
     `;
-    if (statement) {
-      await sendPushToUser(statement.userId, {
-        title: "Statement processing failed",
-        body: `${statement.originalFilename}: ${result.error ?? "unknown error"}`,
-        url: `/statements/${statementId}`,
-      });
+    if (!statement) {
+      console.error(`[statements] statement=${statementId} vanished before its result could be recorded`);
     }
+
+    if (result.ok) {
+      await sql`UPDATE jobs SET status = 'succeeded' WHERE id = ${jobId}`;
+      console.log(`[statements] statement=${statementId} job=${jobId} succeeded`);
+      // pdf-service itself sets status='done' once it has written transactions;
+      // this is just a safety net in case it crashed after responding ok=true.
+      if (statement) {
+        await sendPushToUser(statement.userId, {
+          title: "Statement processed",
+          body: `${statement.originalFilename} is done — your transactions are ready.`,
+          url: `/statements/${statementId}`,
+        });
+      }
+    } else {
+      console.error(`[statements] statement=${statementId} job=${jobId} failed: ${result.error}`);
+      await sql`UPDATE jobs SET status = 'failed', last_error = ${result.error ?? "unknown error"} WHERE id = ${jobId}`;
+      await sql`
+        UPDATE statements
+        SET status = 'failed', failure_reason = ${result.error ?? "unknown error"}
+        WHERE id = ${statementId} AND status != 'done'
+      `;
+      if (statement) {
+        await sendPushToUser(statement.userId, {
+          title: "Statement processing failed",
+          body: `${statement.originalFilename}: ${result.error ?? "unknown error"}`,
+          url: `/statements/${statementId}`,
+        });
+      }
+    }
+  } catch (err) {
+    // Anything unexpected here (a DB write failing, sendPushToUser throwing,
+    // etc.) must still leave the statement in a terminal, visible state
+    // rather than stuck on "processing" forever with nothing in the UI to
+    // explain why.
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[statements] statement=${statementId} job=${jobId} runProcessing crashed:`, err);
+    await sql`UPDATE jobs SET status = 'failed', last_error = ${message} WHERE id = ${jobId}`.catch((e) =>
+      console.error(`[statements] also failed to record job failure for job=${jobId}:`, e)
+    );
+    await sql`
+      UPDATE statements SET status = 'failed', failure_reason = ${message}
+      WHERE id = ${statementId} AND status != 'done'
+    `.catch((e) => console.error(`[statements] also failed to record statement failure for ${statementId}:`, e));
   }
 }
 

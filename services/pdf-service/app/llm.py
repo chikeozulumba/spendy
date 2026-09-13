@@ -1,10 +1,13 @@
 import base64
 import json
+import logging
 import re
 
 import anthropic
 
 from .config import settings
+
+logger = logging.getLogger("pdf-service.llm")
 
 _client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
 _MODEL = "claude-sonnet-5"
@@ -37,26 +40,35 @@ def _extract_json_block(text: str) -> str:
 def _call_json(system: str, user: str, *, max_tokens: int = 4096) -> dict:
     last_error: Exception | None = None
     for attempt in range(2):  # one retry on malformed JSON
-        response = _client.messages.create(
-            model=_MODEL,
-            max_tokens=max_tokens,
-            system=system,
-            # Disable extended thinking: for a long/complex statement, Sonnet 5's
-            # default-on reasoning can silently consume the entire max_tokens
-            # budget before emitting any answer text at all (response.content
-            # ends up with only a "thinking" block, zero "text" blocks). That's
-            # indistinguishable from an empty response once joined below, and
-            # this is a deterministic extraction/categorization task that
-            # doesn't benefit from it anyway.
-            thinking={"type": "disabled"},
-            messages=[{"role": "user", "content": user}],
-        )
+        try:
+            response = _client.messages.create(
+                model=_MODEL,
+                max_tokens=max_tokens,
+                system=system,
+                # Disable extended thinking: for a long/complex statement, Sonnet 5's
+                # default-on reasoning can silently consume the entire max_tokens
+                # budget before emitting any answer text at all (response.content
+                # ends up with only a "thinking" block, zero "text" blocks). That's
+                # indistinguishable from an empty response once joined below, and
+                # this is a deterministic extraction/categorization task that
+                # doesn't benefit from it anyway.
+                thinking={"type": "disabled"},
+                messages=[{"role": "user", "content": user}],
+            )
+        except anthropic.APIError as exc:
+            # Auth failures (bad/expired ANTHROPIC_API_KEY), rate limits, and
+            # transient 5xx from Anthropic all land here — logging the
+            # exception type is what tells them apart in the logs, since the
+            # top-level pipeline catch in main.py only sees str(exc).
+            logger.error("Anthropic API call failed (%s): %s", type(exc).__name__, exc)
+            raise
 
         if response.stop_reason == "max_tokens":
             # The response was cut off mid-output — whatever text we have is
             # incomplete by definition. Retrying with the same budget against
             # the same input would almost certainly truncate at the same
             # point, so fail clearly instead of masquerading as bad JSON.
+            logger.warning("LLM response truncated at max_tokens=%d", max_tokens)
             last_error = RuntimeError(
                 f"response was truncated at the {max_tokens}-token limit before completing"
             )
@@ -66,6 +78,7 @@ def _call_json(system: str, user: str, *, max_tokens: int = 4096) -> dict:
         try:
             return json.loads(_extract_json_block(raw))
         except json.JSONDecodeError as exc:
+            logger.warning("LLM returned malformed JSON on attempt %d, retrying: %s", attempt + 1, exc)
             last_error = exc
             user = (
                 user
@@ -91,15 +104,20 @@ def _call_json_multimodal(system: str, content: list[dict], *, max_tokens: int =
                 }
             ]
 
-        response = _client.messages.create(
-            model=_MODEL,
-            max_tokens=max_tokens,
-            system=system,
-            thinking={"type": "disabled"},
-            messages=[{"role": "user", "content": content}],
-        )
+        try:
+            response = _client.messages.create(
+                model=_MODEL,
+                max_tokens=max_tokens,
+                system=system,
+                thinking={"type": "disabled"},
+                messages=[{"role": "user", "content": content}],
+            )
+        except anthropic.APIError as exc:
+            logger.error("Anthropic API call failed (%s): %s", type(exc).__name__, exc)
+            raise
 
         if response.stop_reason == "max_tokens":
+            logger.warning("LLM response truncated at max_tokens=%d", max_tokens)
             last_error = RuntimeError(
                 f"response was truncated at the {max_tokens}-token limit before completing"
             )
@@ -109,6 +127,7 @@ def _call_json_multimodal(system: str, content: list[dict], *, max_tokens: int =
         try:
             return json.loads(_extract_json_block(raw))
         except json.JSONDecodeError as exc:
+            logger.warning("LLM returned malformed JSON on attempt %d, retrying: %s", attempt + 1, exc)
             last_error = exc
     raise LlmJsonError(f"LLM did not return valid JSON after retry: {last_error}")
 
