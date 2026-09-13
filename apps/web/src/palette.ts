@@ -40,14 +40,15 @@ export function colorForIndex(index: number): string {
   return DARK_CATEGORICAL[index % DARK_CATEGORICAL.length];
 }
 
-// Years are ordinal/chronological, not a qualitative set like categories, so
-// they get a single-hue sequential ramp (moss family, oldest → lightest/dimmest,
-// most recent → deepest/most vivid — "vivid" on a light surface means more
-// saturated and darker, the opposite direction from the old dark-mode ramp).
-const YEAR_SEQUENTIAL = ["#6a9c54", "#568a41", "#437a30", "#316b20", "#1f5c12", "#123d0a"];
-
+// A same-hue sequential ramp (all shades of one green) reads fine for a
+// single stacked series, but this chart draws years as *unstacked*,
+// semi-transparent, overlapping areas — with only saturation/lightness
+// differing, overlapping fills blend into one indistinguishable blob rather
+// than a set of visibly distinct years. So years get distinct hues instead,
+// same as categories/banks — recency is carried by the direct year label
+// (axis/legend/tooltip), not by a light-to-dark ramp.
 export function colorForYear(index: number): string {
-  return YEAR_SEQUENTIAL[index % YEAR_SEQUENTIAL.length];
+  return DARK_CATEGORICAL[index % DARK_CATEGORICAL.length];
 }
 
 export const CHART_SURFACE = "#fdfdfd";

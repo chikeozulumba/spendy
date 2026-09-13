@@ -1,13 +1,14 @@
 import { useRef, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import clsx from "clsx";
 import { UploadCloud } from "lucide-react";
 import { api } from "../api";
-import { Card } from "../components/ui/Card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { Switch } from "../components/ui/Switch";
+import { BankCombobox } from "../components/BankCombobox";
 
 export default function UploadPage() {
   const { getToken } = useAuth();
@@ -17,31 +18,38 @@ export default function UploadPage() {
   const [password, setPassword] = useState("");
   const [isProtected, setIsProtected] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [bankName, setBankName] = useState("");
+
+  const banksQuery = useQuery({
+    queryKey: ["banks"],
+    queryFn: () => api.getBankNames(getToken),
+  });
 
   const upload = useMutation({
     mutationFn: () => {
       if (!file) throw new Error("Choose a PDF first");
-      return api.uploadStatement(getToken, file, isProtected ? password : undefined);
+      return api.uploadStatement(getToken, file, isProtected ? password : undefined, bankName);
     },
     onSuccess: (result) => navigate(`/statements/${result.id}`),
   });
 
   return (
     <Card className="mx-auto max-w-lg">
-      <h1 className="text-xl font-bold tracking-tight text-text-100">
-        Upload a bank statement
-      </h1>
-      <p className="mt-1 text-sm text-text-400">
-        PDF only. It's encrypted at rest and used only to extract transactions.
-      </p>
+      <CardHeader>
+        <CardTitle>Upload a bank statement</CardTitle>
+        <CardDescription>
+          PDF only. It's encrypted at rest and used only to extract transactions.
+        </CardDescription>
+      </CardHeader>
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          upload.mutate();
-        }}
-        className="mt-5 flex flex-col gap-4"
-      >
+      <CardContent>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            upload.mutate();
+          }}
+          className="flex flex-col gap-4"
+        >
         <label
           onDragOver={(e) => {
             e.preventDefault();
@@ -77,6 +85,17 @@ export default function UploadPage() {
           )}
         </label>
 
+        <div>
+          <label className="mb-1.5 block text-sm text-text-100">
+            Bank <span className="text-text-600">(optional — inferred if left blank)</span>
+          </label>
+          <BankCombobox
+            value={bankName}
+            onValueChange={setBankName}
+            banks={banksQuery.data ?? []}
+          />
+        </div>
+
         <label className="flex items-center gap-3 text-sm text-text-100">
           <Switch checked={isProtected} onCheckedChange={setIsProtected} />
           This PDF is password-protected
@@ -101,7 +120,8 @@ export default function UploadPage() {
             {(upload.error as Error).message}
           </p>
         )}
-      </form>
+        </form>
+      </CardContent>
     </Card>
   );
 }

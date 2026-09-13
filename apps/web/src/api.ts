@@ -33,15 +33,29 @@ async function request<T>(
 }
 
 export const api = {
-  uploadStatement: (getToken: GetToken, file: File, password?: string) => {
+  uploadStatement: (
+    getToken: GetToken,
+    file: File,
+    password?: string,
+    bankName?: string
+  ) => {
     const form = new FormData();
     form.append("file", file);
     if (password) form.append("password", password);
+    if (bankName) form.append("bankName", bankName);
     return request<{ id: string; status: string }>(getToken, "/statements", {
       method: "POST",
       body: form,
     });
   },
+
+  getBankNames: (getToken: GetToken) => request<string[]>(getToken, "/statements/banks"),
+
+  assignBank: (getToken: GetToken, id: string, bankName: string) =>
+    request<{ id: string; bankName: string }>(getToken, `/statements/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ bankName }),
+    }),
 
   reprocessStatement: (getToken: GetToken, id: string, password?: string) =>
     request<{ id: string; status: string }>(getToken, `/statements/${id}/reprocess`, {

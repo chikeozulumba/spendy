@@ -1,5 +1,6 @@
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/clerk-react";
-import { Link, Route, Routes } from "react-router-dom";
+import { Link, Route, Routes, useLocation } from "react-router-dom";
+import { Plus } from "lucide-react";
 import UploadPage from "./pages/UploadPage";
 import StatementsListPage from "./pages/StatementsListPage";
 import StatementDetailPage from "./pages/StatementDetailPage";
@@ -7,6 +8,8 @@ import Logo from "./components/Logo";
 import { Button } from "./components/ui/Button";
 
 export default function App() {
+  const location = useLocation();
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="border-b border-line bg-white px-6 py-4">
@@ -15,7 +18,17 @@ export default function App() {
             <Logo />
           </Link>
           <SignedIn>
-            <UserButton afterSignOutUrl="/" />
+            <div className="flex items-center gap-4">
+              {location.pathname !== "/upload" && (
+                <Link to="/upload">
+                  <Button>
+                    <Plus className="size-4" />
+                    Upload statement
+                  </Button>
+                </Link>
+              )}
+              <UserButton afterSignOutUrl="/" />
+            </div>
           </SignedIn>
         </div>
       </header>

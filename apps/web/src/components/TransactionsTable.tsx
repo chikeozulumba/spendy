@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { cn } from "@/lib/cn";
 import { useAuth } from "@clerk/clerk-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   createColumnHelper,
   flexRender,
@@ -10,11 +10,12 @@ import {
   type SortingState,
 } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
+import { useMemo, useState } from "react";
 import { api } from "../api";
+import { formatCurrency } from "../lib/formatCurrency";
+import { formatDate } from "../lib/formatDate";
 import { CATEGORIES, type Transaction } from "../types";
 import { Select, SelectOption } from "./ui/Select";
-import { formatDate } from "../lib/formatDate";
-import { formatCurrency } from "../lib/formatCurrency";
 
 const columnHelper = createColumnHelper<Transaction>();
 
@@ -29,13 +30,17 @@ export default function TransactionsTable({
 }) {
   const { getToken } = useAuth();
   const queryClient = useQueryClient();
-  const [sorting, setSorting] = useState<SortingState>([{ id: "date", desc: false }]);
+  const [sorting, setSorting] = useState<SortingState>([
+    { id: "date", desc: false },
+  ]);
 
   const recategorize = useMutation({
     mutationFn: ({ id, category }: { id: string; category: string }) =>
       api.recategorize(getToken, id, category),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["transactions", statementId] });
+      queryClient.invalidateQueries({
+        queryKey: ["transactions", statementId],
+      });
       queryClient.invalidateQueries({ queryKey: ["insights", statementId] });
     },
   });
@@ -57,13 +62,18 @@ export default function TransactionsTable({
           cell: (info) => {
             const row = info.row.original;
             return (
-              <>
+              <span
+                className={cn(
+                  "whitespace-nowrap",
+                  row.direction === "credit" ? "text-moss-400" : "text-red-400",
+                )}
+              >
                 {row.direction === "credit" ? "+" : "−"}
                 {formatCurrency(row.amount, currency)}
-              </>
+              </span>
             );
           },
-        }
+        },
       ),
       columnHelper.accessor((row) => row.category ?? "", {
         id: "category",
@@ -74,8 +84,11 @@ export default function TransactionsTable({
             <div className="flex items-center gap-2">
               <Select
                 value={row.category ?? ""}
-                onValueChange={(category) => recategorize.mutate({ id: row.id, category })}
+                onValueChange={(category) =>
+                  recategorize.mutate({ id: row.id, category })
+                }
                 placeholder="Uncategorized"
+                className="whitespace-nowrap"
               >
                 {CATEGORIES.map((cat) => (
                   <SelectOption key={cat} value={cat}>
@@ -83,14 +96,16 @@ export default function TransactionsTable({
                   </SelectOption>
                 ))}
               </Select>
-              {row.isUserOverridden && <span className="text-xs text-text-600">edited</span>}
+              {row.isUserOverridden && (
+                <span className="text-xs text-text-600">edited</span>
+              )}
             </div>
           );
         },
       }),
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [currency]
+    [currency],
   );
 
   const table = useReactTable({
@@ -117,7 +132,10 @@ export default function TransactionsTable({
                 return (
                   <th
                     key={header.id}
-                    className={"px-5 py-2.5 font-medium " + (isAmount ? "text-right" : "")}
+                    className={
+                      "px-5 py-2.5 font-medium " +
+                      (isAmount ? "text-right" : "")
+                    }
                   >
                     <button
                       type="button"
@@ -127,11 +145,21 @@ export default function TransactionsTable({
                         (isAmount ? "flex-row-reverse" : "")
                       }
                     >
-                      {flexRender(header.column.columnDef.header, header.getContext())}
-                      {sorted === "asc" && <ArrowUp className="h-3 w-3" strokeWidth={2} />}
-                      {sorted === "desc" && <ArrowDown className="h-3 w-3" strokeWidth={2} />}
+                      {flexRender(
+                        header.column.columnDef.header,
+                        header.getContext(),
+                      )}
+                      {sorted === "asc" && (
+                        <ArrowUp className="h-3 w-3" strokeWidth={2} />
+                      )}
+                      {sorted === "desc" && (
+                        <ArrowDown className="h-3 w-3" strokeWidth={2} />
+                      )}
                       {!sorted && (
-                        <ChevronsUpDown className="h-3 w-3 opacity-40" strokeWidth={2} />
+                        <ChevronsUpDown
+                          className="h-3 w-3 opacity-40"
+                          strokeWidth={2}
+                        />
                       )}
                     </button>
                   </th>
@@ -154,7 +182,9 @@ export default function TransactionsTable({
                       "px-5 py-2.5 " +
                       (isAmount
                         ? "whitespace-nowrap text-right font-mono tabular " +
-                          (original.direction === "credit" ? "text-moss-400" : "text-text-100")
+                          (original.direction === "credit"
+                            ? "text-moss-400"
+                            : "text-text-100")
                         : isDate
                           ? "whitespace-nowrap font-mono tabular text-text-400"
                           : "text-text-100")

@@ -1,14 +1,13 @@
 import { useMemo } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
 import { CheckCircle2, FileStack, Landmark, Wallet } from "lucide-react";
 import { api } from "../api";
 import LedgerTable from "../components/LedgerTable";
 import SpendingByCategoryChart from "../components/SpendingByCategoryChart";
 import SpendingByBankChart from "../components/SpendingByBankChart";
-import { Card, Eyebrow } from "../components/ui/Card";
-import { Button } from "../components/ui/Button";
+import CategoryAmountBarChart from "../components/CategoryAmountBarChart";
+import { Card } from "../components/ui/Card";
 import { StatCard } from "../components/ui/StatCard";
 import { formatCurrency } from "../lib/formatCurrency";
 
@@ -61,6 +60,19 @@ export default function StatementsListPage() {
     };
   }, [data, overviewQuery.data, bankOverviewQuery.data]);
 
+  // All-time per-category totals (summed across years) for the "Spending by
+  // category" bar chart — derived from the same by-year/category rows the
+  // area chart above already uses, just aggregated differently.
+  const categoryTotals = useMemo(() => {
+    const currency = overviewQuery.data?.primaryCurrency ?? "USD";
+    const totals = new Map<string, number>();
+    for (const row of overviewQuery.data?.rows ?? []) {
+      if (row.currency !== currency) continue;
+      totals.set(row.category, (totals.get(row.category) ?? 0) + Number(row.total));
+    }
+    return Array.from(totals, ([category, total]) => ({ category, total }));
+  }, [overviewQuery.data]);
+
   return (
     <div>
       {data && data.length > 0 && (
@@ -87,35 +99,36 @@ export default function StatementsListPage() {
         </div>
       )}
 
-      {(overviewQuery.data || bankOverviewQuery.data) && (
-        <div className="mb-5 grid gap-5 lg:grid-cols-3">
-          {overviewQuery.data && (
-            <Card className="p-4 lg:col-span-2">
-              <Eyebrow className="mb-1">Spending by category, by year</Eyebrow>
-              <SpendingByCategoryChart
-                rows={overviewQuery.data.rows}
-                primaryCurrency={overviewQuery.data.primaryCurrency}
-              />
-            </Card>
-          )}
+      {overviewQuery.data && (
+        <div className="mb-5">
+          <SpendingByCategoryChart
+            rows={overviewQuery.data.rows}
+            primaryCurrency={overviewQuery.data.primaryCurrency}
+          />
+        </div>
+      )}
 
+      {(bankOverviewQuery.data || categoryTotals.length > 0) && (
+        <div className="mb-5 grid gap-5 lg:grid-cols-2">
           {bankOverviewQuery.data && (
-            <Card className="p-4 lg:col-span-1">
-              <Eyebrow className="mb-1">Spending by bank</Eyebrow>
-              <SpendingByBankChart
-                rows={bankOverviewQuery.data.rows}
-                primaryCurrency={bankOverviewQuery.data.primaryCurrency}
-              />
-            </Card>
+            <SpendingByBankChart
+              rows={bankOverviewQuery.data.rows}
+              primaryCurrency={bankOverviewQuery.data.primaryCurrency}
+            />
+          )}
+          {categoryTotals.length > 0 && (
+            <CategoryAmountBarChart
+              title="Spending by category"
+              description="Total spend per category across all statements"
+              data={categoryTotals}
+              currency={overviewQuery.data?.primaryCurrency ?? "USD"}
+            />
           )}
         </div>
       )}
 
-      <div className="mb-5 flex items-center justify-between">
+      <div className="mb-5">
         <h1 className="text-xl font-bold tracking-tight text-text-100">Your ledger</h1>
-        <Link to="/upload">
-          <Button>Upload statement</Button>
-        </Link>
       </div>
 
       <Card className="p-0">

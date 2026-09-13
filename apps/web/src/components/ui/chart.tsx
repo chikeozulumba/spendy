@@ -150,4 +150,54 @@ function ChartTooltipContent({
   );
 }
 
-export { ChartContainer, ChartTooltip, ChartTooltipContent, useChart };
+const ChartLegend = RechartsPrimitive.Legend;
+
+interface ChartLegendPayloadItem {
+  value?: string | number;
+  dataKey?: string | number;
+  color?: string;
+}
+
+function ChartLegendContent({
+  className,
+  hideIcon = false,
+  payload,
+}: {
+  className?: string;
+  hideIcon?: boolean;
+  payload?: ChartLegendPayloadItem[];
+}) {
+  const { config } = useChart();
+
+  if (!payload?.length) return null;
+
+  return (
+    <div className={cn("flex flex-wrap items-center justify-center gap-4 pt-3", className)}>
+      {payload.map((item, i) => {
+        const key = String(item.dataKey ?? item.value ?? i);
+        const itemConfig = config[key];
+
+        return (
+          <div key={key} className="flex items-center gap-1.5 text-xs text-text-400">
+            {!hideIcon && (
+              <span
+                className="h-2 w-2 shrink-0 rounded-full"
+                style={{ backgroundColor: item.color ?? itemConfig?.color }}
+              />
+            )}
+            {itemConfig?.label ?? item.value}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  useChart,
+};

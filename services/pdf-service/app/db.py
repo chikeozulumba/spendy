@@ -62,13 +62,19 @@ async def update_statement_extraction(
     # the existing value rather than branching per combination of "did we get
     # this field or not", which stops scaling the moment there's more than one
     # such optional field.
+    #
+    # bank_name specifically: COALESCE(bank_name, $7) — existing value first,
+    # LLM guess only as a fallback. The user can pick their bank explicitly at
+    # upload time now; that deliberate choice must never be silently
+    # overwritten by a lower-confidence inference run afterward. currency has
+    # no equivalent manual input yet, so it stays LLM-first.
     await pool.execute(
         """
         UPDATE statements
         SET opening_balance = $2, closing_balance = $3,
             statement_period_start = $4, statement_period_end = $5,
             currency = COALESCE($6, currency),
-            bank_name = COALESCE($7, bank_name),
+            bank_name = COALESCE(bank_name, $7),
             updated_at = now()
         WHERE id = $1
         """,
