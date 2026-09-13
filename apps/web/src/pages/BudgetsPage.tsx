@@ -8,6 +8,7 @@ import { Button } from "../components/ui/Button";
 import { PeriodPicker } from "../components/PeriodPicker";
 import { ScopeForm } from "../components/ScopeForm";
 import { BudgetRow } from "../components/BudgetRow";
+import { ScopeRowSkeleton, BudgetRowSkeleton } from "../components/skeletons/BudgetsSkeletons";
 import { currentMonth, formatPeriodLabel, type Period } from "../lib/period";
 
 const SUGGESTED_SCOPES = ["Spending", "Savings", "Seed/Giving", "Education"];
@@ -108,7 +109,15 @@ export default function BudgetsPage() {
           )}
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          {scopes.length === 0 && !showCreateForm && (
+          {scopesQuery.isLoading && (
+            <>
+              <ScopeRowSkeleton />
+              <ScopeRowSkeleton />
+              <ScopeRowSkeleton />
+            </>
+          )}
+
+          {!scopesQuery.isLoading && scopes.length === 0 && !showCreateForm && (
             <div className="flex flex-col gap-3">
               <p className="text-text-400">
                 No scopes yet. Create one to start budgeting — for example:
@@ -202,10 +211,14 @@ export default function BudgetsPage() {
           <PeriodPicker period={period} onChange={setPeriod} />
         </CardHeader>
         <CardContent>
-          {scopes.length === 0 ? (
+          {scopesQuery.isLoading || (scopes.length > 0 && summaryQuery.isLoading) ? (
+            Array.from({ length: Math.max(scopes.length, 1) }).map((_, i) => (
+              <BudgetRowSkeleton key={i} />
+            ))
+          ) : scopes.length === 0 ? (
             <p className="text-text-400">Create a scope above to start tracking a budget.</p>
-          ) : summaryQuery.data ? (
-            summaryQuery.data.rows.map((row) => (
+          ) : (
+            summaryQuery.data?.rows.map((row) => (
               <BudgetRow
                 key={row.scopeId}
                 row={row}
@@ -213,8 +226,6 @@ export default function BudgetsPage() {
                 onSave={(amount) => setBudget.mutate({ scopeId: row.scopeId, amount })}
               />
             ))
-          ) : (
-            <p className="text-text-400">Loading…</p>
           )}
         </CardContent>
       </Card>

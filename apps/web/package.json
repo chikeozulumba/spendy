@@ -22,6 +22,7 @@
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/react-query": "^5.59.0",
     "@tanstack/react-table": "8.21.3",
+    "cleave.js": "^1.6.0",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "lucide-react": "^1.45.0",
@@ -29,8 +30,12 @@
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.2",
     "recharts": "^2.12.7",
+    "sonner": "^2.0.8",
     "tailwind-merge": "^3.7.0",
-    "tailwindcss": "^4.3.3"
+    "tailwindcss": "^4.3.3",
+    "@radix-ui/react-dialog": "^1.1.23",
+    "react-day-picker": "^9.14.0",
+    "date-fns": "^4.4.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.10",
@@ -38,6 +43,7 @@
     "@vitejs/plugin-react": "^4.3.1",
     "typescript": "^5.6.2",
     "vite": "^5.4.8",
-    "wrangler": "^4.131.1"
+    "wrangler": "^4.131.1",
+    "@types/cleave.js": "^1.4.12"
   }
 }

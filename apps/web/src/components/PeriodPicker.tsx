@@ -6,6 +6,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/Select";
+import { DatePicker } from "./ui/DatePicker";
 import { currentMonth, shiftMonths, yearRange, type Period } from "../lib/period";
 
 type Preset = "this-month" | "last-month" | "this-year" | "custom";
@@ -54,20 +55,16 @@ export function PeriodPicker({
       </Select>
       {preset === "custom" && (
         <div className="flex items-center gap-1.5">
-          <input
-            type="date"
+          <DatePicker
             value={period.start}
             max={period.end}
-            onChange={(e) => onChange({ ...period, start: e.target.value })}
-            className="rounded-md border border-line bg-ink-850 px-2 py-1.5 text-sm text-text-100 outline-none focus:border-moss-500"
+            onChange={(start) => onChange({ ...period, start })}
           />
           <span className="text-text-600">–</span>
-          <input
-            type="date"
+          <DatePicker
             value={period.end}
             min={period.start}
-            onChange={(e) => onChange({ ...period, end: e.target.value })}
-            className="rounded-md border border-line bg-ink-850 px-2 py-1.5 text-sm text-text-100 outline-none focus:border-moss-500"
+            onChange={(end) => onChange({ ...period, end })}
           />
         </div>
       )}

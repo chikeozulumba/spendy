@@ -18,7 +18,17 @@ import {
   CardTitle,
 } from "../components/ui/Card";
 import { Progress } from "../components/ui/Progress";
+import { StatementHeaderSkeleton } from "../components/skeletons/StatementHeaderSkeleton";
+import { StatementInsightsSkeleton } from "../components/skeletons/StatementInsightsSkeleton";
+import { TableSkeleton } from "../components/skeletons/TableSkeleton";
 import { formatDate } from "../lib/formatDate";
+
+const TRANSACTIONS_COLUMNS = [
+  { header: "Date", width: "40%" },
+  { header: "Description", width: "80%" },
+  { header: "Amount", width: "35%" },
+  { header: "Category", width: "50%" },
+];
 
 export default function StatementDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -78,7 +88,12 @@ export default function StatementDetailPage() {
   });
 
   if (statementQuery.isLoading)
-    return <p className="text-text-400">Loading…</p>;
+    return (
+      <div className="flex flex-col gap-5">
+        <StatementHeaderSkeleton />
+        <StatementInsightsSkeleton />
+      </div>
+    );
   if (statementQuery.error)
     return (
       <p className="text-rust-400">{(statementQuery.error as Error).message}</p>
@@ -158,6 +173,8 @@ export default function StatementDetailPage() {
         </Card>
       )}
 
+      {isDone && !insightsQuery.data && <StatementInsightsSkeleton />}
+
       {isDone && insightsQuery.data && (
         <>
           {insightsQuery.data.reconciliationOk === false && (
@@ -215,12 +232,14 @@ export default function StatementDetailPage() {
             <CardHeader className="mb-0 border-b-0 px-5 pt-5 pb-4">
               <CardTitle>Transactions</CardTitle>
             </CardHeader>
-            {transactionsQuery.data && (
+            {transactionsQuery.data ? (
               <TransactionsTable
                 statementId={id!}
                 transactions={transactionsQuery.data}
                 currency={currency}
               />
+            ) : (
+              <TableSkeleton columns={TRANSACTIONS_COLUMNS} />
             )}
           </Card>
         </>

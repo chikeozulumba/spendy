@@ -2,6 +2,7 @@ import { useState } from "react";
 import clsx from "clsx";
 import { formatCurrency } from "../lib/formatCurrency";
 import type { BudgetSummaryRow } from "../types";
+import { NumberInput } from "./ui/NumberInput";
 
 const TONE = {
   over: { bar: "bg-rust-400", badge: "bg-rust-400/10 text-rust-400", label: "Over budget" },
@@ -66,15 +67,7 @@ export function BudgetRow({
         }}
         className="flex items-center gap-2"
       >
-        <input
-          type="number"
-          min="0"
-          step="0.01"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          placeholder="Set budget amount"
-          className="w-40 rounded-md border border-line bg-ink-850 px-2.5 py-1.5 text-sm text-text-100 outline-none focus:border-moss-500"
-        />
+        <NumberInput value={amount} onChange={setAmount} placeholder="Set budget amount" className="w-40" />
         <button
           type="submit"
           className="rounded-md border border-line px-2.5 py-1.5 text-sm text-text-400 hover:border-line-strong hover:text-text-100"

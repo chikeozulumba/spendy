@@ -2,13 +2,14 @@ import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/clerk-reac
 import { Link, Route, Routes, useLocation } from "react-router-dom";
 import { Plus } from "lucide-react";
 import clsx from "clsx";
-import UploadPage from "./pages/UploadPage";
 import StatementsListPage from "./pages/StatementsListPage";
 import StatementDetailPage from "./pages/StatementDetailPage";
 import BudgetsPage from "./pages/BudgetsPage";
 import ComparePage from "./pages/ComparePage";
 import Logo from "./components/Logo";
 import { Button } from "./components/ui/Button";
+import { UploadModal } from "./components/UploadModal";
+import { UploadModalProvider, useUploadModal } from "./context/UploadModalContext";
 
 const NAV_LINKS = [
   { to: "/budgets", label: "Budgets" },
@@ -16,7 +17,16 @@ const NAV_LINKS = [
 ];
 
 export default function App() {
+  return (
+    <UploadModalProvider>
+      <AppShell />
+    </UploadModalProvider>
+  );
+}
+
+function AppShell() {
   const location = useLocation();
+  const { open: openUploadModal } = useUploadModal();
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -47,14 +57,10 @@ export default function App() {
           </div>
           <SignedIn>
             <div className="flex items-center gap-4">
-              {location.pathname !== "/upload" && (
-                <Link to="/upload">
-                  <Button>
-                    <Plus className="size-4" />
-                    Upload statement
-                  </Button>
-                </Link>
-              )}
+              <Button onClick={openUploadModal}>
+                <Plus className="size-4" />
+                Upload statement
+              </Button>
               <UserButton afterSignOutUrl="/" />
             </div>
           </SignedIn>
@@ -83,11 +89,11 @@ export default function App() {
         <SignedIn>
           <Routes>
             <Route path="/" element={<StatementsListPage />} />
-            <Route path="/upload" element={<UploadPage />} />
             <Route path="/statements/:id" element={<StatementDetailPage />} />
             <Route path="/budgets" element={<BudgetsPage />} />
             <Route path="/compare" element={<ComparePage />} />
           </Routes>
+          <UploadModal />
         </SignedIn>
       </main>
     </div>

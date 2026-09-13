@@ -4,9 +4,11 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, TrendingDown, TrendingUp } from "lucide-react";
 import clsx from "clsx";
 import { api } from "../api";
-import { Card, CardContent } from "../components/ui/Card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/Card";
 import { PeriodPicker } from "../components/PeriodPicker";
 import PeriodComparisonChart from "../components/PeriodComparisonChart";
+import { StatCardSkeleton } from "../components/skeletons/StatCardSkeleton";
+import { GroupedBarChartSkeleton } from "../components/skeletons/ChartSkeletons";
 import { currentMonth, formatPeriodLabel, shiftMonths, type Period } from "../lib/period";
 import { formatCurrency } from "../lib/formatCurrency";
 
@@ -82,66 +84,90 @@ export default function ComparePage() {
         </Card>
       )}
 
-      {data && (
+      {comparisonQuery.isLoading ? (
         <div className="grid gap-5 sm:grid-cols-3">
-          <Card>
-            <p className="text-xs font-medium uppercase tracking-wide text-text-400">
-              {formatPeriodLabel(periodA)}
-            </p>
-            <p className="mt-1 font-mono text-xl font-semibold text-text-100">
-              {formatCurrency(data.totalA, data.currency)}
-            </p>
-          </Card>
-          <Card>
-            <p className="text-xs font-medium uppercase tracking-wide text-text-400">
-              {formatPeriodLabel(periodB)}
-            </p>
-            <p className="mt-1 font-mono text-xl font-semibold text-text-100">
-              {formatCurrency(data.totalB, data.currency)}
-            </p>
-          </Card>
-          <Card className="flex items-center gap-3">
-            <span
-              className={clsx(
-                "flex size-9 shrink-0 items-center justify-center rounded-lg",
-                spendingMore ? "bg-rust-400/10 text-rust-400" : "bg-moss-400/10 text-moss-400"
-              )}
-            >
-              {spendingMore ? (
-                <TrendingUp className="size-5" />
-              ) : (
-                <TrendingDown className="size-5" />
-              )}
-            </span>
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-text-400">Change</p>
-              <p
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+        </div>
+      ) : (
+        data && (
+          <div className="grid gap-5 sm:grid-cols-3">
+            <Card>
+              <p className="text-xs font-medium uppercase tracking-wide text-text-400">
+                {formatPeriodLabel(periodA)}
+              </p>
+              <p className="mt-1 font-mono text-xl font-semibold text-text-100">
+                {formatCurrency(data.totalA, data.currency)}
+              </p>
+            </Card>
+            <Card>
+              <p className="text-xs font-medium uppercase tracking-wide text-text-400">
+                {formatPeriodLabel(periodB)}
+              </p>
+              <p className="mt-1 font-mono text-xl font-semibold text-text-100">
+                {formatCurrency(data.totalB, data.currency)}
+              </p>
+            </Card>
+            <Card className="flex items-center gap-3">
+              <span
                 className={clsx(
-                  "font-mono text-xl font-semibold",
-                  spendingMore ? "text-rust-400" : "text-moss-400"
+                  "flex size-9 shrink-0 items-center justify-center rounded-lg",
+                  spendingMore ? "bg-rust-400/10 text-rust-400" : "bg-moss-400/10 text-moss-400"
                 )}
               >
-                {spendingMore ? "+" : ""}
-                {formatCurrency(delta, data.currency)}
-                {pctChange !== null && (
-                  <span className="ml-1 text-sm font-normal text-text-400">
-                    ({spendingMore ? "+" : ""}
-                    {pctChange.toFixed(1)}%)
-                  </span>
+                {spendingMore ? (
+                  <TrendingUp className="size-5" />
+                ) : (
+                  <TrendingDown className="size-5" />
                 )}
-              </p>
-            </div>
-          </Card>
-        </div>
+              </span>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-text-400">
+                  Change
+                </p>
+                <p
+                  className={clsx(
+                    "font-mono text-xl font-semibold",
+                    spendingMore ? "text-rust-400" : "text-moss-400"
+                  )}
+                >
+                  {spendingMore ? "+" : ""}
+                  {formatCurrency(delta, data.currency)}
+                  {pctChange !== null && (
+                    <span className="ml-1 text-sm font-normal text-text-400">
+                      ({spendingMore ? "+" : ""}
+                      {pctChange.toFixed(1)}%)
+                    </span>
+                  )}
+                </p>
+              </div>
+            </Card>
+          </div>
+        )
       )}
 
-      {data && (
-        <PeriodComparisonChart
-          data={data.categories}
-          currency={data.currency}
-          labelA={formatPeriodLabel(periodA)}
-          labelB={formatPeriodLabel(periodB)}
-        />
+      {comparisonQuery.isLoading ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Spending by category</CardTitle>
+            <CardDescription>
+              {formatPeriodLabel(periodA)} vs {formatPeriodLabel(periodB)}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <GroupedBarChartSkeleton />
+          </CardContent>
+        </Card>
+      ) : (
+        data && (
+          <PeriodComparisonChart
+            data={data.categories}
+            currency={data.currency}
+            labelA={formatPeriodLabel(periodA)}
+            labelB={formatPeriodLabel(periodB)}
+          />
+        )
       )}
     </div>
   );

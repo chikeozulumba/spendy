@@ -7,9 +7,26 @@ import LedgerTable from "../components/LedgerTable";
 import SpendingByCategoryChart from "../components/SpendingByCategoryChart";
 import SpendingByBankChart from "../components/SpendingByBankChart";
 import CategoryAmountBarChart from "../components/CategoryAmountBarChart";
-import { Card } from "../components/ui/Card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/Card";
 import { StatCard } from "../components/ui/StatCard";
+import { StatCardSkeleton } from "../components/skeletons/StatCardSkeleton";
+import { TableSkeleton } from "../components/skeletons/TableSkeleton";
+import {
+  AreaChartSkeleton,
+  DonutChartSkeleton,
+  HorizontalBarsSkeleton,
+} from "../components/skeletons/ChartSkeletons";
+import { EmptyLedgerState } from "../components/EmptyLedgerState";
 import { formatCurrency } from "../lib/formatCurrency";
+
+const LEDGER_COLUMNS = [
+  { header: "Bank", width: "50%" },
+  { header: "Period", width: "60%" },
+  { header: "Currency", width: "30%" },
+  { header: "Status", width: "40%" },
+  { header: "Reconciled", width: "20%" },
+  { header: "Filed", width: "50%" },
+];
 
 export default function StatementsListPage() {
   const { getToken } = useAuth();
@@ -22,11 +39,13 @@ export default function StatementsListPage() {
   const overviewQuery = useQuery({
     queryKey: ["spending-overview"],
     queryFn: () => api.getSpendingOverview(getToken),
+    enabled: !!data && data.length > 0,
   });
 
   const bankOverviewQuery = useQuery({
     queryKey: ["spending-by-bank"],
     queryFn: () => api.getSpendingByBank(getToken),
+    enabled: !!data && data.length > 0,
   });
 
   const stats = useMemo(() => {
@@ -73,75 +92,122 @@ export default function StatementsListPage() {
     return Array.from(totals, ([category, total]) => ({ category, total }));
   }, [overviewQuery.data]);
 
+  if (isLoading) {
+    return (
+      <div>
+        <div className="mb-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <StatCardSkeleton key={i} />
+          ))}
+        </div>
+        <Card className="p-0">
+          <TableSkeleton columns={LEDGER_COLUMNS} />
+        </Card>
+      </div>
+    );
+  }
+
+  if (error && !data) {
+    return <p className="text-rust-400">{(error as Error).message}</p>;
+  }
+
+  // No statements at all yet — one focused empty state rather than a page
+  // full of zeroed-out cards and charts that all say "nothing here" in
+  // their own way.
+  if (!data || data.length === 0) {
+    return <EmptyLedgerState />;
+  }
+
   return (
     <div>
-      {data && data.length > 0 && (
-        <div className="mb-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard icon={Wallet} label="Total spent" value={stats.totalSpent} tone="moss" />
-          <StatCard
-            icon={FileStack}
-            label="Statements filed"
-            value={String(stats.statementCount)}
-            tone="neutral"
-          />
-          <StatCard
-            icon={CheckCircle2}
-            label="Reconciliation rate"
-            value={stats.reconciliationRate}
-            tone="moss"
-          />
-          <StatCard
-            icon={Landmark}
-            label="Banks tracked"
-            value={String(stats.bankCount)}
-            tone="gold"
-          />
-        </div>
-      )}
+      <div className="mb-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard icon={Wallet} label="Total spent" value={stats.totalSpent} tone="moss" />
+        <StatCard
+          icon={FileStack}
+          label="Statements filed"
+          value={String(stats.statementCount)}
+          tone="neutral"
+        />
+        <StatCard
+          icon={CheckCircle2}
+          label="Reconciliation rate"
+          value={stats.reconciliationRate}
+          tone="moss"
+        />
+        <StatCard
+          icon={Landmark}
+          label="Banks tracked"
+          value={String(stats.bankCount)}
+          tone="gold"
+        />
+      </div>
 
-      {overviewQuery.data && (
-        <div className="mb-5">
+      <div className="mb-5">
+        {overviewQuery.data ? (
           <SpendingByCategoryChart
             rows={overviewQuery.data.rows}
             primaryCurrency={overviewQuery.data.primaryCurrency}
           />
-        </div>
-      )}
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>Spending by category, by year</CardTitle>
+              <CardDescription>
+                Category totals across the years you've filed statements for
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AreaChartSkeleton />
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
-      {(bankOverviewQuery.data || categoryTotals.length > 0) && (
-        <div className="mb-5 grid gap-5 lg:grid-cols-2">
-          {bankOverviewQuery.data && (
-            <SpendingByBankChart
-              rows={bankOverviewQuery.data.rows}
-              primaryCurrency={bankOverviewQuery.data.primaryCurrency}
-            />
-          )}
-          {categoryTotals.length > 0 && (
+      <div className="mb-5 grid gap-5 lg:grid-cols-2">
+        {bankOverviewQuery.data ? (
+          <SpendingByBankChart
+            rows={bankOverviewQuery.data.rows}
+            primaryCurrency={bankOverviewQuery.data.primaryCurrency}
+          />
+        ) : (
+          <Card className="flex flex-col">
+            <CardHeader className="items-center pb-4">
+              <CardTitle>Spending by bank</CardTitle>
+              <CardDescription>Total spend across all your statements</CardDescription>
+            </CardHeader>
+            <CardContent className="flex-1">
+              <DonutChartSkeleton />
+            </CardContent>
+          </Card>
+        )}
+        {overviewQuery.data ? (
+          categoryTotals.length > 0 && (
             <CategoryAmountBarChart
               title="Spending by category"
               description="Total spend per category across all statements"
               data={categoryTotals}
-              currency={overviewQuery.data?.primaryCurrency ?? "USD"}
+              currency={overviewQuery.data.primaryCurrency}
             />
-          )}
-        </div>
-      )}
+          )
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>Spending by category</CardTitle>
+              <CardDescription>Total spend per category across all statements</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <HorizontalBarsSkeleton />
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
       <div className="mb-5">
         <h1 className="text-xl font-bold tracking-tight text-text-100">Your ledger</h1>
       </div>
 
       <Card className="p-0">
-        {isLoading && <p className="p-5 text-text-400">Loading…</p>}
-        {error && !data && (
-          <p className="p-5 text-rust-400">{(error as Error).message}</p>
-        )}
-        {data && data.length === 0 && (
-          <p className="p-5 text-text-400">
-            Nothing filed yet. Upload your first bank statement to start reconciling.
-          </p>
-        )}
-        {data && data.length > 0 && <LedgerTable statements={data} />}
+        <LedgerTable statements={data} />
       </Card>
     </div>
   );
