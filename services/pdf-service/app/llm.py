@@ -133,6 +133,7 @@ Return ONLY strict JSON, no commentary, no markdown fences, matching:
   "description": "<short merchant/purpose description>",
   "direction": "debit" | "credit",
   "category": "<one of the categories above>",
+  "bank_name": "<bank/institution this went through, e.g. from a transfer confirmation or what the user said, or null if genuinely cash/not applicable>",
   "is_loan": <true | false>,
   "loan_counterparty": "<name mentioned in conversation, or null if not a loan or not stated>",
   "loan_expected_repayment_date": "<YYYY-MM-DD if a repayment date was stated, else null>"
@@ -145,6 +146,9 @@ Rules:
 - Never invent a loan_expected_repayment_date that wasn't actually stated —
   null is a valid, expected answer for "no date given".
 - "amount" must be a positive number regardless of direction.
+- "bank_name" should be null for a plain cash payment — don't guess a bank
+  just because a payment happened; only set it when a bank/institution is
+  actually legible on the document or was stated in conversation.
 """
 
 

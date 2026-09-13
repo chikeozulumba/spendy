@@ -35,7 +35,8 @@
     "tailwindcss": "^4.3.3",
     "@radix-ui/react-dialog": "^1.1.23",
     "react-day-picker": "^9.14.0",
-    "date-fns": "^4.4.0"
+    "date-fns": "^4.4.0",
+    "@tanstack/react-virtual": "^3.14.12"
   },
   "devDependencies": {
     "@types/react": "^18.3.10",

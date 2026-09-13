@@ -21,7 +21,11 @@ export const env = {
   clerkPublishableKey: process.env.CLERK_PUBLISHABLE_KEY ?? "",
 
   pdfServiceUrl: required("PDF_SERVICE_URL"),
-  pdfServiceTimeoutMs: Number(process.env.PDF_SERVICE_TIMEOUT_MS ?? 55000),
+  // The pipeline runs three sequential LLM calls (extraction, categorization,
+  // summary) plus PDF parsing — 55s (this fallback's old value) was too
+  // tight for a real multi-page statement and aborted the request mid-flight,
+  // marking the statement "failed" from a timeout rather than a real error.
+  pdfServiceTimeoutMs: Number(process.env.PDF_SERVICE_TIMEOUT_MS ?? 550000),
 
   vapidPublicKey: required("VAPID_PUBLIC_KEY"),
   vapidPrivateKey: required("VAPID_PRIVATE_KEY"),

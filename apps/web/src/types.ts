@@ -49,9 +49,24 @@ export interface AllTransactionRow {
   originalFilename: string | null;
 }
 
+export interface TransactionsPagination {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface TransactionsMetrics {
+  count: number;
+  totalDebit: string;
+  totalCredit: string;
+}
+
 export interface AllTransactions {
   rows: AllTransactionRow[];
   primaryCurrency: string;
+  pagination: TransactionsPagination;
+  metrics: TransactionsMetrics;
 }
 
 export type LoanStatus = "outstanding" | "repaid" | "overdue" | "written_off";

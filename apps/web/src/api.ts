@@ -174,11 +174,18 @@ export const api = {
       method: "POST",
     }),
 
-  getAllTransactions: (getToken: GetToken, source?: TransactionSource) =>
-    request<AllTransactions>(
-      getToken,
-      `/transactions${source ? `?source=${source}` : ""}`
-    ),
+  getAllTransactions: (
+    getToken: GetToken,
+    input?: { source?: TransactionSource; category?: string; page?: number; pageSize?: number }
+  ) => {
+    const params = new URLSearchParams();
+    if (input?.source) params.set("source", input.source);
+    if (input?.category) params.set("category", input.category);
+    if (input?.page) params.set("page", String(input.page));
+    if (input?.pageSize) params.set("pageSize", String(input.pageSize));
+    const query = params.toString();
+    return request<AllTransactions>(getToken, `/transactions${query ? `?${query}` : ""}`);
+  },
 
   getTelegramStatus: (getToken: GetToken) =>
     request<{ linked: boolean }>(getToken, "/telegram/status"),

@@ -59,6 +59,7 @@ async def process_telegram_session(
         description = _as_nonempty_str(result.get("description")) or "Telegram capture"
         direction = result.get("direction")
         category = result.get("category")
+        bank_name = _as_nonempty_str(result.get("bank_name"))
         is_loan = bool(result.get("is_loan"))
         loan_counterparty = _as_nonempty_str(result.get("loan_counterparty"))
         loan_repayment_date = result.get("loan_expected_repayment_date")
@@ -71,7 +72,7 @@ async def process_telegram_session(
             category = "Other"
 
         transaction_id = await db.insert_telegram_transaction(
-            user_id, date, description, amount, direction, category, 0.8
+            user_id, date, description, amount, direction, category, 0.8, bank_name
         )
 
         if is_loan:
@@ -79,7 +80,8 @@ async def process_telegram_session(
 
         await db.insert_telegram_session_log(user_id, chat_id, storage_path, transcript, transaction_id)
 
-        summary_lines = [f"Logged: {description} — {amount:,.2f} ({category})."]
+        bank_suffix = f" via {bank_name}" if bank_name else ""
+        summary_lines = [f"Logged: {description} — {amount:,.2f} ({category}){bank_suffix}."]
         if is_loan:
             who = loan_counterparty or "them"
             when = f", expected back {loan_repayment_date}" if loan_repayment_date else ""

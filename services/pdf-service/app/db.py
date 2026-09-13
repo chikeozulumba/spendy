@@ -248,14 +248,15 @@ async def insert_telegram_transaction(
     direction: str,
     category: str,
     category_confidence: float,
+    bank_name: str | None = None,
 ) -> str:
     date = _to_date(date)
     pool = await get_pool()
     record = await pool.fetchrow(
         """
         INSERT INTO transactions
-          (statement_id, user_id, date, description, amount, direction, category, category_confidence, source)
-        VALUES (NULL, $1, $2, $3, $4, $5, $6, $7, 'telegram')
+          (statement_id, user_id, date, description, amount, direction, category, category_confidence, source, bank_name)
+        VALUES (NULL, $1, $2, $3, $4, $5, $6, $7, 'telegram', $8)
         RETURNING id
         """,
         user_id,
@@ -265,6 +266,7 @@ async def insert_telegram_transaction(
         direction,
         category,
         category_confidence,
+        bank_name,
     )
     return str(record["id"])
 
