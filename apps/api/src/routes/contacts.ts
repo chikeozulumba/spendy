@@ -245,6 +245,12 @@ contacts.get("/:id", async (c) => {
     MAX_PAGE_SIZE,
     Math.max(1, Number(c.req.query("pageSize") ?? DEFAULT_PAGE_SIZE) || DEFAULT_PAGE_SIZE)
   );
+  // Optional: scopes metrics/categories/transactions to a single year — used
+  // by the Analytics tab's "view transactions" modal, which should only ever
+  // show the same year the chart itself is scoped to, not this contact's
+  // full history.
+  const yearParam = Number(c.req.query("year"));
+  const year = Number.isFinite(yearParam) && yearParam > 0 ? yearParam : null;
 
   const [contact] = await sql`
     SELECT id, name, type, created_at FROM contacts WHERE id = ${id} AND user_id = ${userId}
@@ -252,6 +258,8 @@ contacts.get("/:id", async (c) => {
   if (!contact) return c.json({ error: "Not found" }, 404);
 
   const primaryCurrency = await primaryCurrencyFor(userId);
+
+  const yearClause = year ? sql`AND EXTRACT(YEAR FROM date) = ${year}` : sql``;
 
   const [metricsRow] = await sql`
     SELECT
@@ -261,13 +269,13 @@ contacts.get("/:id", async (c) => {
       MIN(date) AS first_interaction_at,
       MAX(date) AS last_interaction_at
     FROM transactions
-    WHERE contact_id = ${id} AND user_id = ${userId}
+    WHERE contact_id = ${id} AND user_id = ${userId} ${yearClause}
   `;
 
   const topCategories = await sql`
     SELECT category, COUNT(*) AS count, COALESCE(SUM(amount), 0) AS total
     FROM transactions
-    WHERE contact_id = ${id} AND user_id = ${userId} AND category IS NOT NULL
+    WHERE contact_id = ${id} AND user_id = ${userId} AND category IS NOT NULL ${yearClause}
     GROUP BY category
     ORDER BY total DESC
     LIMIT 5
@@ -282,7 +290,7 @@ contacts.get("/:id", async (c) => {
       COALESCE(s.bank_name, t.bank_name) AS bank_name
     FROM transactions t
     LEFT JOIN statements s ON s.id = t.statement_id
-    WHERE t.contact_id = ${id} AND t.user_id = ${userId}
+    WHERE t.contact_id = ${id} AND t.user_id = ${userId} ${year ? sql`AND EXTRACT(YEAR FROM t.date) = ${year}` : sql``}
     ORDER BY t.date DESC, t.created_at DESC
     LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}
   `;

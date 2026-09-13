@@ -252,10 +252,11 @@ export const api = {
   getContactAnalytics: (getToken: GetToken, year?: number) =>
     request<ContactAnalytics>(getToken, `/contacts/analytics${year ? `?year=${year}` : ""}`),
 
-  getContact: (getToken: GetToken, id: string, input?: { page?: number; pageSize?: number }) => {
+  getContact: (getToken: GetToken, id: string, input?: { page?: number; pageSize?: number; year?: number }) => {
     const params = new URLSearchParams();
     if (input?.page) params.set("page", String(input.page));
     if (input?.pageSize) params.set("pageSize", String(input.pageSize));
+    if (input?.year) params.set("year", String(input.year));
     const query = params.toString();
     return request<ContactDetail>(getToken, `/contacts/${id}${query ? `?${query}` : ""}`);
   },

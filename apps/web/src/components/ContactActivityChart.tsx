@@ -1,4 +1,5 @@
 import { useId } from "react";
+import { ListFilter } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, XAxis } from "recharts";
 import { formatCurrency } from "../lib/formatCurrency";
 import { AXIS_INK, GRIDLINE } from "../palette";
@@ -46,8 +47,12 @@ const config: ChartConfig = {
  */
 export function ContactActivityChart({
   analytics,
+  onSelectContact,
 }: {
   analytics: ContactAnalytics;
+  /** Opens a transactions modal scoped to this same contact + year — the
+   * "list of all the transactions pertaining to the scope of the chart". */
+  onSelectContact?: () => void;
 }) {
   const gradientUid = useId();
   const { topContact } = analytics;
@@ -72,12 +77,15 @@ export function ContactActivityChart({
             </CardDescription>
           </div>
           {topContact && (
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-text-100">
-                {topContact.name}
-              </span>
+            <button
+              type="button"
+              onClick={onSelectContact}
+              className="flex items-center gap-2 rounded-lg border border-line px-3 py-1.5 transition-colors hover:border-line-strong hover:bg-ink-850"
+            >
+              <span className="font-semibold text-text-100">{topContact.name}</span>
               <ContactTypeBadge type={topContact.type} />
-            </div>
+              <ListFilter className="size-3.5 text-text-400" strokeWidth={1.8} />
+            </button>
           )}
         </div>
       </CardHeader>

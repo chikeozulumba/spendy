@@ -19,9 +19,14 @@ const ROW_HEIGHT = 64;
 
 export function ContactTransactionsSheet({
   contact,
+  year,
   onOpenChange,
 }: {
   contact: ContactRow | null;
+  /** Scopes metrics/categories/transactions to a single year — used when
+   * opened from the Analytics tab's chart, which should only ever show the
+   * same year the chart itself is scoped to, not the contact's full history. */
+  year?: number;
   onOpenChange: (open: boolean) => void;
 }) {
   const { getToken } = useAuth();
@@ -33,11 +38,11 @@ export function ContactTransactionsSheet({
   // rather than carrying over whatever page the previous contact was on.
   useEffect(() => {
     setPage(1);
-  }, [contact?.id]);
+  }, [contact?.id, year]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["contacts", "detail", contact?.id, page],
-    queryFn: () => api.getContact(getToken, contact!.id, { page, pageSize: PAGE_SIZE }),
+    queryKey: ["contacts", "detail", contact?.id, year, page],
+    queryFn: () => api.getContact(getToken, contact!.id, { page, pageSize: PAGE_SIZE, year }),
     enabled: !!contact,
   });
 
@@ -78,7 +83,7 @@ export function ContactTransactionsSheet({
                     {netOutflow ? "−" : "+"}
                     {formatCurrency(Math.abs(netAmount), data?.primaryCurrency ?? "USD")}
                   </span>
-                  <span>net</span>
+                  <span>net{year ? ` in ${year}` : ""}</span>
                 </span>
                 {contact.lastInteractionAt && (
                   <span className="inline-flex items-center gap-1.5">
@@ -115,7 +120,7 @@ export function ContactTransactionsSheet({
 
           {data && transactions.length === 0 && (
             <p className="px-5 py-10 text-center text-sm text-text-400">
-              No transactions with this contact yet.
+              {year ? `No transactions with this contact in ${year}.` : "No transactions with this contact yet."}
             </p>
           )}
 
