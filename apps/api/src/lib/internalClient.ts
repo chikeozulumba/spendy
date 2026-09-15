@@ -8,11 +8,15 @@ interface ProcessResult {
 // Kicks off the full extraction/reconciliation/categorization pipeline in the
 // pdf-service, synchronously from Hono's point of view (bounded timeout), but
 // the caller in routes/statements.ts doesn't block the client response on it —
-// see comment there. `password`, if present, lives only in this request body:
-// it is never written to the `jobs` or `statements` rows.
+// see comment there. `password` and `anthropicApiKey`, if present, live only
+// in this request body: neither is ever written to the `jobs` or `statements`
+// rows. `anthropicApiKey`, when set, is the user's own key (they've opted out
+// of the shared quota) and pdf-service uses it instead of its own for this
+// statement's LLM calls.
 export async function triggerProcessing(
   statementId: string,
-  password: string | undefined
+  password: string | undefined,
+  anthropicApiKey?: string
 ): Promise<ProcessResult> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), env.pdfServiceTimeoutMs);
@@ -28,7 +32,7 @@ export async function triggerProcessing(
         "content-type": "application/json",
         "x-internal-token": env.internalServiceToken,
       },
-      body: JSON.stringify({ statementId, password }),
+      body: JSON.stringify({ statementId, password, anthropicApiKey }),
       signal: controller.signal,
     });
 

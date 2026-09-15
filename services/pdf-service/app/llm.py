@@ -13,6 +13,13 @@ _client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
 _MODEL = "claude-sonnet-5"
 
 
+def _client_for(api_key: str | None) -> anthropic.Anthropic:
+    """A user who's supplied their own Anthropic key gets their processing
+    billed to it instead of the app's — used only for the lifetime of this
+    one call, never cached or persisted."""
+    return anthropic.Anthropic(api_key=api_key) if api_key else _client
+
+
 class LlmJsonError(Exception):
     pass
 
@@ -37,11 +44,12 @@ def _extract_json_block(text: str) -> str:
     return stripped
 
 
-def _call_json(system: str, user: str, *, max_tokens: int = 4096) -> dict:
+def _call_json(system: str, user: str, *, max_tokens: int = 4096, api_key: str | None = None) -> dict:
+    client = _client_for(api_key)
     last_error: Exception | None = None
     for attempt in range(2):  # one retry on malformed JSON
         try:
-            response = _client.messages.create(
+            response = client.messages.create(
                 model=_MODEL,
                 max_tokens=max_tokens,
                 system=system,
@@ -88,11 +96,14 @@ def _call_json(system: str, user: str, *, max_tokens: int = 4096) -> dict:
     raise LlmJsonError(f"LLM did not return valid JSON after retry: {last_error}")
 
 
-def _call_json_multimodal(system: str, content: list[dict], *, max_tokens: int = 4096) -> dict:
+def _call_json_multimodal(
+    system: str, content: list[dict], *, max_tokens: int = 4096, api_key: str | None = None
+) -> dict:
     """Same contract as _call_json, but for a request that includes a
     document/image content block alongside text — used only by the Telegram
     capture's structuring call, where the document itself (not
     pre-extracted text) is part of the input."""
+    client = _client_for(api_key)
     last_error: Exception | None = None
     for attempt in range(2):
         if attempt > 0:
@@ -105,7 +116,7 @@ def _call_json_multimodal(system: str, content: list[dict], *, max_tokens: int =
             ]
 
         try:
-            response = _client.messages.create(
+            response = client.messages.create(
                 model=_MODEL,
                 max_tokens=max_tokens,
                 system=system,
@@ -197,7 +208,11 @@ Rules:
 
 
 def structure_telegram_capture(
-    transcript: list[dict], document_bytes: bytes, mime_type: str, taxonomy: list[str]
+    transcript: list[dict],
+    document_bytes: bytes,
+    mime_type: str,
+    taxonomy: list[str],
+    api_key: str | None = None,
 ) -> dict:
     encoded = base64.b64encode(document_bytes).decode("ascii")
     block_type = "document" if mime_type == "application/pdf" else "image"
@@ -213,7 +228,7 @@ def structure_telegram_capture(
     ]
 
     system = TELEGRAM_CAPTURE_SYSTEM_PROMPT.format(taxonomy=", ".join(taxonomy))
-    return _call_json_multimodal(system, content, max_tokens=1024)
+    return _call_json_multimodal(system, content, max_tokens=1024, api_key=api_key)
 
 
 EXTRACTION_SYSTEM_PROMPT = """You are a precise financial data extraction system.
@@ -259,13 +274,13 @@ Rules:
 """
 
 
-def extract_transactions(statement_text: str) -> dict:
+def extract_transactions(statement_text: str, api_key: str | None = None) -> dict:
     # 20000 is the largest budget the non-streaming client accepts (the SDK
     # requires streaming above ~24000, since a response could then plausibly
     # run past its 10-minute non-streaming timeout). A long statement with
     # many transactions needs real headroom here — 8192 was tight enough to
     # truncate on ordinary-sized statements.
-    return _call_json(EXTRACTION_SYSTEM_PROMPT, statement_text, max_tokens=20000)
+    return _call_json(EXTRACTION_SYSTEM_PROMPT, statement_text, max_tokens=20000, api_key=api_key)
 
 
 def categorization_system_prompt(taxonomy: list[str]) -> str:
@@ -282,12 +297,14 @@ one entry per input transaction, no commentary, no markdown fences.
 """
 
 
-def categorize_transactions(items: list[dict], taxonomy: list[str]) -> list[dict]:
+def categorize_transactions(
+    items: list[dict], taxonomy: list[str], api_key: str | None = None
+) -> list[dict]:
     # categorize_all() batches every uncached transaction from the statement
     # into this one call — same truncation risk as extraction on a statement
     # with many transactions, so the same higher budget applies here.
     user = json.dumps(items)
-    result = _call_json(categorization_system_prompt(taxonomy), user, max_tokens=20000)
+    result = _call_json(categorization_system_prompt(taxonomy), user, max_tokens=20000, api_key=api_key)
     if isinstance(result, dict) and "results" in result:
         return result["results"]
     if isinstance(result, list):
@@ -324,11 +341,11 @@ Rules:
 """
 
 
-def extract_entities(items: list[dict]) -> list[dict]:
+def extract_entities(items: list[dict], api_key: str | None = None) -> list[dict]:
     """items: [{"id": ..., "description": ...}, ...] — same batching shape
     and truncation-budget reasoning as categorize_transactions."""
     user = json.dumps(items)
-    result = _call_json(ENTITY_SYSTEM_PROMPT, user, max_tokens=20000)
+    result = _call_json(ENTITY_SYSTEM_PROMPT, user, max_tokens=20000, api_key=api_key)
     if isinstance(result, dict) and "results" in result:
         return result["results"]
     if isinstance(result, list):
@@ -345,9 +362,12 @@ if that data is provided. Do not mention raw transaction counts or technical
 terms like "debit"/"credit". Return plain text only, no JSON, no markdown."""
 
 
-def generate_summary(current_totals: dict[str, float], prior_totals: dict[str, float]) -> str:
+def generate_summary(
+    current_totals: dict[str, float], prior_totals: dict[str, float], api_key: str | None = None
+) -> str:
     user = json.dumps({"current_period": current_totals, "prior_period": prior_totals})
-    response = _client.messages.create(
+    client = _client_for(api_key)
+    response = client.messages.create(
         model=_MODEL,
         max_tokens=300,
         system=SUMMARY_SYSTEM_PROMPT,

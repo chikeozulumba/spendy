@@ -19,7 +19,12 @@ function extractJsonBlock(text: string): string {
     .replace(/\s*```\s*$/, "");
 }
 
-async function callJson(system: string, user: string, maxTokens: number): Promise<unknown> {
+async function callJson(
+  system: string,
+  user: string,
+  maxTokens: number,
+  apiKeyOverride?: string
+): Promise<unknown> {
   let lastError: string | undefined;
   let userContent = user;
 
@@ -28,7 +33,7 @@ async function callJson(system: string, user: string, maxTokens: number): Promis
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-api-key": env.anthropicApiKey,
+        "x-api-key": apiKeyOverride ?? env.anthropicApiKey,
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
@@ -118,7 +123,8 @@ Return ONLY strict JSON, no commentary, no markdown fences, matching:
 
 export async function nextConversationTurn(
   turns: SessionTurn[],
-  taxonomy: string[]
+  taxonomy: string[],
+  apiKeyOverride?: string
 ): Promise<{
   message: string;
   ready: boolean;
@@ -127,7 +133,7 @@ export async function nextConversationTurn(
     ? turns.map((t) => `${t.role === "user" ? "User" : "You"}: ${t.message}`).join("\n")
     : "(The user just sent a document with no message yet — ask your first question.)";
 
-  const result = await callJson(conversationSystemPrompt(taxonomy), transcript, 1024);
+  const result = await callJson(conversationSystemPrompt(taxonomy), transcript, 1024, apiKeyOverride);
   if (
     typeof result !== "object" ||
     result === null ||

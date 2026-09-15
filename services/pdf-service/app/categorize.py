@@ -18,7 +18,7 @@ def normalize_merchant(description: str) -> str:
     return text.strip()
 
 
-async def categorize_all(user_id: str, transactions: list[dict]) -> None:
+async def categorize_all(user_id: str, transactions: list[dict], api_key: str | None = None) -> None:
     """`transactions` is a list of {id, description} dicts (already persisted
     rows). Resolves category via user override, then global cache, then a
     single batched LLM call for whatever's left; writes results back."""
@@ -49,6 +49,7 @@ async def categorize_all(user_id: str, transactions: list[dict]) -> None:
     results = categorize_transactions(
         [{"transaction_id": t["id"], "description": t["description"]} for t in uncached],
         taxonomy,
+        api_key=api_key,
     )
 
     valid_categories = set(taxonomy)

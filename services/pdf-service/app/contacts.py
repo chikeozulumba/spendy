@@ -34,7 +34,9 @@ async def upsert_contact(user_id: str, name: str | None, entity_type: str | None
     return await db.upsert_contact(user_id, name.strip(), normalized, resolved_type)
 
 
-async def resolve_entities_for_transactions(user_id: str, items: list[dict]) -> None:
+async def resolve_entities_for_transactions(
+    user_id: str, items: list[dict], api_key: str | None = None
+) -> None:
     """items: [{"id": ..., "description": ...}, ...] — the same shape
     categorize_all() already builds from a statement's freshly-inserted rows.
     Best-effort: a failure here shouldn't fail statement processing overall,
@@ -42,7 +44,7 @@ async def resolve_entities_for_transactions(user_id: str, items: list[dict]) -> 
     if not items:
         return
     try:
-        results = extract_entities(items)
+        results = extract_entities(items, api_key=api_key)
     except LlmJsonError:
         logger.exception("Entity extraction failed for %d transaction(s)", len(items))
         return

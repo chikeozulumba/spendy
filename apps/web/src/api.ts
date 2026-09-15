@@ -10,6 +10,7 @@ import type {
   Insights,
   LoanRow,
   LoanStatus,
+  MeInfo,
   NotificationsResponse,
   PeriodComparison,
   Scope,
@@ -24,6 +25,18 @@ import type {
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8787";
 
 export type GetToken = () => Promise<string | null>;
+
+// `code` is a stable, machine-checkable tag the API attaches to some error
+// responses (e.g. "STATEMENT_LIMIT_REACHED") — callers that need to react to
+// a specific failure should check this, not parse `message`, which is
+// free-text and can change.
+export class ApiError extends Error {
+  code?: string;
+  constructor(message: string, code?: string) {
+    super(message);
+    this.code = code;
+  }
+}
 
 async function request<T>(
   getToken: GetToken,
@@ -40,13 +53,24 @@ async function request<T>(
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.error ?? `Request failed: ${res.status}`);
+    throw new ApiError(body.error ?? `Request failed: ${res.status}`, body.code);
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
 
 export const api = {
+  getMe: (getToken: GetToken) => request<MeInfo>(getToken, "/users/me"),
+
+  saveAnthropicApiKey: (getToken: GetToken, apiKey: string) =>
+    request<{ ok: boolean }>(getToken, "/users/me/anthropic-key", {
+      method: "PATCH",
+      body: JSON.stringify({ apiKey }),
+    }),
+
+  removeAnthropicApiKey: (getToken: GetToken) =>
+    request<{ ok: boolean }>(getToken, "/users/me/anthropic-key", { method: "DELETE" }),
+
   uploadStatement: (
     getToken: GetToken,
     file: File,

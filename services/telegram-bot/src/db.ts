@@ -1,6 +1,7 @@
 import postgres from "postgres";
 import { env } from "./env.js";
 import { ADMIN_EMAIL } from "./limits.js";
+import { decryptBuffer } from "./crypto.js";
 
 export const sql = postgres(env.databaseUrl, {
   transform: postgres.camel,
@@ -55,9 +56,23 @@ export async function markLoanFulfilled(loanId: string): Promise<void> {
   await sql`UPDATE loan_book SET status = 'repaid', updated_at = now() WHERE id = ${loanId}`;
 }
 
-export async function isAdminUser(userId: string): Promise<boolean> {
-  const [row] = await sql<{ email: string }[]>`SELECT email FROM users WHERE id = ${userId}`;
-  return row?.email === ADMIN_EMAIL;
+export interface UserGateStatus {
+  isAdmin: boolean;
+  // Decrypted, present only when the user has saved their own Anthropic key
+  // (apps/api's /users/me/anthropic-key) — they're exempt from the Telegram
+  // quota below, and this same key is forwarded to pdf-service so their
+  // processing is billed to them instead of the app.
+  ownApiKey: string | null;
+}
+
+export async function getUserGateStatus(userId: string): Promise<UserGateStatus> {
+  const [row] = await sql<{ email: string; anthropicApiKey: Buffer | null }[]>`
+    SELECT email, anthropic_api_key FROM users WHERE id = ${userId}
+  `;
+  return {
+    isAdmin: row?.email === ADMIN_EMAIL,
+    ownApiKey: row?.anthropicApiKey ? decryptBuffer(row.anthropicApiKey).toString("utf8") : null,
+  };
 }
 
 // Only transactions logged through Telegram count toward the Telegram cap —

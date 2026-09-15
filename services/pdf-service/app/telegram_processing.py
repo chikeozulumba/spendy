@@ -18,6 +18,9 @@ router = APIRouter()
 
 class TelegramProcessRequest(BaseModel):
     jobId: str
+    # The user's own Anthropic key, present only when they've opted out of
+    # the shared processing quota — request-scoped only, never persisted.
+    anthropicApiKey: str | None = None
 
 
 class TelegramProcessResponse(BaseModel):
@@ -51,7 +54,9 @@ async def process_telegram_session(
         taxonomy = await db.get_categories()
 
         try:
-            result = structure_telegram_capture(transcript, document_bytes, mime_type, taxonomy)
+            result = structure_telegram_capture(
+                transcript, document_bytes, mime_type, taxonomy, api_key=req.anthropicApiKey
+            )
         except LlmJsonError as exc:
             raise RuntimeError(f"LLM structuring failed: {exc}") from exc
 

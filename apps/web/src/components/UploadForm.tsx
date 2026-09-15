@@ -1,25 +1,33 @@
 import { useRef, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
-import { UploadCloud } from "lucide-react";
-import { api } from "../api";
+import { KeyRound, UploadCloud } from "lucide-react";
+import { api, ApiError } from "../api";
 import { Button } from "./ui/Button";
 import { Switch } from "./ui/Switch";
 import { BankCombobox } from "./BankCombobox";
+import { ApiKeyModal } from "./ApiKeyModal";
 
 export function UploadForm({ onSuccess }: { onSuccess: (statementId: string) => void }) {
   const { getToken } = useAuth();
+  const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [password, setPassword] = useState("");
   const [isProtected, setIsProtected] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [bankName, setBankName] = useState("");
+  const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false);
 
   const banksQuery = useQuery({
     queryKey: ["banks"],
     queryFn: () => api.getBankNames(getToken),
+  });
+
+  const meQuery = useQuery({
+    queryKey: ["me"],
+    queryFn: () => api.getMe(getToken),
   });
 
   const upload = useMutation({
@@ -27,8 +35,17 @@ export function UploadForm({ onSuccess }: { onSuccess: (statementId: string) => 
       if (!file) throw new Error("Choose a PDF first");
       return api.uploadStatement(getToken, file, isProtected ? password : undefined, bankName);
     },
-    onSuccess: (result) => onSuccess(result.id),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["me"] });
+      onSuccess(result.id);
+    },
   });
+
+  const limitReached =
+    upload.error instanceof ApiError && upload.error.code === "STATEMENT_LIMIT_REACHED";
+  const me = meQuery.data;
+  const remaining =
+    me && me.statements.limit !== null ? Math.max(0, me.statements.limit - me.statements.used) : null;
 
   return (
     <form
@@ -95,15 +112,40 @@ export function UploadForm({ onSuccess }: { onSuccess: (statementId: string) => 
         />
       )}
 
-      <Button type="submit" disabled={!file || upload.isPending} className="mt-1">
+      <Button type="submit" disabled={!file || upload.isPending || limitReached} className="mt-1">
         {upload.isPending ? "Uploading…" : "Upload"}
       </Button>
 
-      {upload.isError && (
-        <p className="rounded-lg border border-rust-600 bg-rust-600/10 px-4 py-3 text-sm text-rust-400">
-          {(upload.error as Error).message}
+      {!me?.isAdmin && !me?.hasOwnApiKey && remaining !== null && (
+        <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-text-600">
+          <span>
+            {remaining} of {me?.statements.limit} statement{me?.statements.limit === 1 ? "" : "s"}{" "}
+            remaining.
+          </span>
+          <button
+            type="button"
+            onClick={() => setApiKeyModalOpen(true)}
+            className="inline-flex items-center gap-1 text-text-400 underline underline-offset-2 hover:text-text-100"
+          >
+            <KeyRound className="size-3" strokeWidth={1.8} />
+            Use your own API key for unlimited processing
+          </button>
         </p>
       )}
+
+      {upload.isError && (
+        <div className="flex flex-col items-start gap-2 rounded-lg border border-rust-600 bg-rust-600/10 px-4 py-3 text-sm text-rust-400">
+          <p>{(upload.error as Error).message}</p>
+          {limitReached && (
+            <Button type="button" variant="secondary" onClick={() => setApiKeyModalOpen(true)}>
+              <KeyRound className="size-4" />
+              Add your API key to continue
+            </Button>
+          )}
+        </div>
+      )}
+
+      <ApiKeyModal open={apiKeyModalOpen} onOpenChange={setApiKeyModalOpen} me={me} />
     </form>
   );
 }

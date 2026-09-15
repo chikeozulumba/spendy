@@ -60,6 +60,10 @@ async def log_startup_config():
 class ProcessRequest(BaseModel):
     statementId: str
     password: str | None = None
+    # The user's own Anthropic key, present only when they've opted out of
+    # the shared processing quota — see `password`'s comment below, same
+    # request-scoped-only handling applies.
+    anthropicApiKey: str | None = None
 
 
 class ProcessResponse(BaseModel):
@@ -101,8 +105,9 @@ async def process(req: ProcessRequest, x_internal_token: str | None = Header(def
     storage_path = statement["storage_path"]
     logger.info("statement=%s user=%s starting pipeline", statement_id, user_id)
 
-    # `req.password` is used only in the local variables below for this one
-    # request's lifetime — it is never written to any log line or DB row.
+    # `req.password` and `req.anthropicApiKey` are used only in the local
+    # variables below for this one request's lifetime — neither is ever
+    # written to any log line or DB row.
     try:
         if not storage_path:
             raise RuntimeError("Original PDF was purged by retention policy; re-upload required")
@@ -125,7 +130,7 @@ async def process(req: ProcessRequest, x_internal_token: str | None = Header(def
 
         logger.info("statement=%s calling LLM for transaction extraction", statement_id)
         try:
-            extraction = extract_transactions(redacted_text)
+            extraction = extract_transactions(redacted_text, api_key=req.anthropicApiKey)
         except LlmJsonError as exc:
             raise RuntimeError(f"LLM extraction failed: {exc}") from exc
 
@@ -170,16 +175,16 @@ async def process(req: ProcessRequest, x_internal_token: str | None = Header(def
         ]
 
         logger.info("statement=%s calling LLM for categorization", statement_id)
-        await categorize_all(user_id, tx_for_categorization)
+        await categorize_all(user_id, tx_for_categorization, api_key=req.anthropicApiKey)
 
         logger.info("statement=%s resolving contacts/entities", statement_id)
-        await resolve_entities_for_transactions(user_id, tx_for_categorization)
+        await resolve_entities_for_transactions(user_id, tx_for_categorization, api_key=req.anthropicApiKey)
 
         current_totals = await db.get_statement_category_totals(statement_id)
         before_date = _parse_date(period_end) or dt.date.today()
         prior_totals = await db.get_prior_month_category_totals(user_id, before_date)
         logger.info("statement=%s generating summary", statement_id)
-        summary = generate_summary(current_totals, prior_totals)
+        summary = generate_summary(current_totals, prior_totals, api_key=req.anthropicApiKey)
         await db.update_statement_summary(statement_id, summary)
 
         await db.update_statement_status(statement_id, "done")

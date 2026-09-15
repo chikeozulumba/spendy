@@ -6,6 +6,7 @@ import { triggerProcessing } from "../lib/internalClient.js";
 import { sendPushToUser } from "../lib/push.js";
 import { requireAuth } from "../auth.js";
 import { ADMIN_EMAIL, MAX_STATEMENTS_PER_USER } from "../limits.js";
+import { getDecryptedAnthropicKey } from "./users.js";
 
 export const statements = new Hono();
 statements.use("*", requireAuth);
@@ -39,13 +40,20 @@ statements.post("/", async (c) => {
 
   // Non-admin accounts are capped on distinct statements processed — checked
   // before any storage write or AI processing, both of which cost real money.
-  if (c.get("userEmail") !== ADMIN_EMAIL) {
+  // A user who's supplied their own Anthropic API key is exempt: their
+  // processing is billed to them, not the app, so there's nothing to cap.
+  const isAdmin = c.get("userEmail") === ADMIN_EMAIL;
+  const ownApiKey = isAdmin ? null : await getDecryptedAnthropicKey(userId);
+  if (!isAdmin && !ownApiKey) {
     const [row] = await sql<{ count: number }[]>`
       SELECT COUNT(*)::int AS count FROM statements WHERE user_id = ${userId}
     `;
     if ((row?.count ?? 0) >= MAX_STATEMENTS_PER_USER) {
       return c.json(
-        { error: `You've reached the limit of ${MAX_STATEMENTS_PER_USER} bank statements for this account.` },
+        {
+          error: `You've reached the limit of ${MAX_STATEMENTS_PER_USER} bank statements for this account.`,
+          code: "STATEMENT_LIMIT_REACHED",
+        },
         403
       );
     }
@@ -103,11 +111,14 @@ statements.post("/", async (c) => {
   // depending on the Node runtime's config can silently vanish (or, worse,
   // crash the process). runProcessing has its own top-level try/catch for
   // exactly this reason; this catch here is a last-resort backstop.
-  void runProcessing(statementId, job.id, typeof password === "string" ? password : undefined).catch(
-    (err) => {
-      console.error(`[statements] runProcessing threw unexpectedly for statement=${statementId}:`, err);
-    }
-  );
+  void runProcessing(
+    statementId,
+    job.id,
+    typeof password === "string" ? password : undefined,
+    ownApiKey ?? undefined
+  ).catch((err) => {
+    console.error(`[statements] runProcessing threw unexpectedly for statement=${statementId}:`, err);
+  });
 
   return c.json({ id: statementId, status: "uploaded" }, 201);
 });
@@ -130,7 +141,8 @@ statements.post("/:id/reprocess", async (c) => {
     INSERT INTO jobs (statement_id, status) VALUES (${id}, 'pending') RETURNING id
   `;
   if (!job) throw new Error("Failed to create job row");
-  void runProcessing(id, job.id, password);
+  const ownApiKey = await getDecryptedAnthropicKey(userId);
+  void runProcessing(id, job.id, password, ownApiKey ?? undefined);
 
   return c.json({ id, status: "processing" });
 });
@@ -277,13 +289,18 @@ statements.get("/:id/insights", async (c) => {
   });
 });
 
-async function runProcessing(statementId: string, jobId: string, password: string | undefined) {
+async function runProcessing(
+  statementId: string,
+  jobId: string,
+  password: string | undefined,
+  anthropicApiKey: string | undefined
+) {
   try {
     await sql`UPDATE jobs SET status = 'running', attempts = attempts + 1 WHERE id = ${jobId}`;
     await sql`UPDATE statements SET status = 'processing' WHERE id = ${statementId}`;
     console.log(`[statements] statement=${statementId} job=${jobId} handed off to pdf-service`);
 
-    const result = await triggerProcessing(statementId, password);
+    const result = await triggerProcessing(statementId, password, anthropicApiKey);
 
     const [statement] = await sql<{ userId: string; originalFilename: string }[]>`
       SELECT user_id, original_filename FROM statements WHERE id = ${statementId}

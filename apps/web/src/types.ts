@@ -1,5 +1,16 @@
 export type StatementStatus = "uploaded" | "processing" | "done" | "failed";
 
+export interface MeInfo {
+  email: string;
+  isAdmin: boolean;
+  hasOwnApiKey: boolean;
+  statements: {
+    used: number;
+    // null means unlimited (admin, or the user has their own Anthropic key on file)
+    limit: number | null;
+  };
+}
+
 export interface StatementSummary {
   id: string;
   originalFilename: string;

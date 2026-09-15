@@ -18,6 +18,10 @@ export async function enqueueTelegramJob(input: {
   storagePath: string;
   mimeType: string;
   transcript: SessionTurn[];
+  // The user's own Anthropic key, forwarded but never persisted to
+  // telegram_jobs — same request-scoped-only handling as apps/api's
+  // triggerProcessing().
+  anthropicApiKey?: string;
 }): Promise<ProcessResult> {
   const [job] = await sql<{ id: string }[]>`
     INSERT INTO telegram_jobs (user_id, chat_id, storage_path, mime_type, transcript, status)
@@ -45,7 +49,7 @@ export async function enqueueTelegramJob(input: {
         "content-type": "application/json",
         "x-internal-token": env.internalServiceToken,
       },
-      body: JSON.stringify({ jobId: job.id }),
+      body: JSON.stringify({ jobId: job.id, anthropicApiKey: input.anthropicApiKey }),
       signal: controller.signal,
     });
 
