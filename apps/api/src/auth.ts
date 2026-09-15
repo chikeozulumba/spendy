@@ -8,6 +8,7 @@ const clerkClient = createClerkClient({ secretKey: env.clerkSecretKey });
 declare module "hono" {
   interface ContextVariableMap {
     userId: string;
+    userEmail: string;
   }
 }
 
@@ -30,8 +31,9 @@ export async function requireAuth(c: Context, next: Next) {
 
   // Ensure a local `users` row exists (idempotent), so every FK reference in
   // statements/transactions/etc. is always satisfiable.
+  let email: string;
   try {
-    const email = await resolveEmail(userId);
+    email = await resolveEmail(userId);
     await sql`
       INSERT INTO users (id, email) VALUES (${userId}, ${email})
       ON CONFLICT (id) DO NOTHING
@@ -42,6 +44,7 @@ export async function requireAuth(c: Context, next: Next) {
   }
 
   c.set("userId", userId);
+  c.set("userEmail", email);
   await next();
 }
 

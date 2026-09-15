@@ -5,6 +5,7 @@ import { putEncrypted, storagePathFor, deleteObject } from "../storage.js";
 import { triggerProcessing } from "../lib/internalClient.js";
 import { sendPushToUser } from "../lib/push.js";
 import { requireAuth } from "../auth.js";
+import { ADMIN_EMAIL, MAX_STATEMENTS_PER_USER } from "../limits.js";
 
 export const statements = new Hono();
 statements.use("*", requireAuth);
@@ -35,6 +36,20 @@ statements.post("/", async (c) => {
   console.log(
     `[statements] upload received: user=${userId} file=${file.name} size=${file.size} bank=${bankName ?? "unset"}`
   );
+
+  // Non-admin accounts are capped on distinct statements processed — checked
+  // before any storage write or AI processing, both of which cost real money.
+  if (c.get("userEmail") !== ADMIN_EMAIL) {
+    const [row] = await sql<{ count: number }[]>`
+      SELECT COUNT(*)::int AS count FROM statements WHERE user_id = ${userId}
+    `;
+    if ((row?.count ?? 0) >= MAX_STATEMENTS_PER_USER) {
+      return c.json(
+        { error: `You've reached the limit of ${MAX_STATEMENTS_PER_USER} bank statements for this account.` },
+        403
+      );
+    }
+  }
 
   const bytes = Buffer.from(await file.arrayBuffer());
   const fileHash = createHash("sha256").update(bytes).digest("hex");

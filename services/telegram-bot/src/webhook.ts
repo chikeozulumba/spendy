@@ -4,8 +4,11 @@ import {
   findLoanByReminderMessage,
   findPendingReminderLoans,
   markLoanFulfilled,
+  isAdminUser,
+  countTelegramTransactions,
   type PendingLoan,
 } from "./db.js";
+import { MAX_TELEGRAM_TRANSACTIONS_PER_USER } from "./limits.js";
 import { downloadFile, sendMessage, type TelegramUpdate } from "./telegram.js";
 import { putEncrypted, storagePathFor } from "./storage.js";
 import { nextConversationTurn } from "./llm.js";
@@ -69,6 +72,19 @@ async function handleNewDocument(
       "You already have a document in progress — finish that conversation first, or send /cancel to start over."
     );
     return;
+  }
+
+  // Non-admin accounts are capped on transactions logged via Telegram —
+  // checked before downloading the file or starting a capture session.
+  if (!(await isAdminUser(userId))) {
+    const count = await countTelegramTransactions(userId);
+    if (count >= MAX_TELEGRAM_TRANSACTIONS_PER_USER) {
+      await trySendMessage(
+        chatId,
+        `You've reached the limit of ${MAX_TELEGRAM_TRANSACTIONS_PER_USER} transactions logged via Telegram for this account.`
+      );
+      return;
+    }
   }
 
   const bytes = await downloadFile(fileId);

@@ -1,5 +1,6 @@
 import postgres from "postgres";
 import { env } from "./env.js";
+import { ADMIN_EMAIL } from "./limits.js";
 
 export const sql = postgres(env.databaseUrl, {
   transform: postgres.camel,
@@ -52,4 +53,19 @@ export async function findPendingReminderLoans(userId: string): Promise<PendingL
 
 export async function markLoanFulfilled(loanId: string): Promise<void> {
   await sql`UPDATE loan_book SET status = 'repaid', updated_at = now() WHERE id = ${loanId}`;
+}
+
+export async function isAdminUser(userId: string): Promise<boolean> {
+  const [row] = await sql<{ email: string }[]>`SELECT email FROM users WHERE id = ${userId}`;
+  return row?.email === ADMIN_EMAIL;
+}
+
+// Only transactions logged through Telegram count toward the Telegram cap —
+// bank-statement transactions are gated separately (by statement count, in
+// apps/api) and shouldn't count against this limit.
+export async function countTelegramTransactions(userId: string): Promise<number> {
+  const [row] = await sql<{ count: number }[]>`
+    SELECT COUNT(*)::int AS count FROM transactions WHERE user_id = ${userId} AND source = 'telegram'
+  `;
+  return row?.count ?? 0;
 }
