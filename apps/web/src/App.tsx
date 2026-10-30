@@ -41,6 +41,9 @@ function AppShell() {
 
   return (
     <div className="flex min-h-screen flex-col">
+      <SignedIn>
+        <ApiKeyPrompt />
+      </SignedIn>
       <header className="border-b border-line bg-white px-4 py-3 sm:px-6 sm:py-4">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 sm:gap-6">
           <div className="flex min-w-0 items-center gap-8">
@@ -147,7 +150,6 @@ function AppShell() {
             <Route path="/telegram" element={<TelegramLinkPage />} />
           </Routes>
           <UploadModal />
-          <ApiKeyPrompt />
         </SignedIn>
       </main>
     </div>
