@@ -4,11 +4,9 @@ export interface MeInfo {
   email: string;
   isAdmin: boolean;
   hasOwnApiKey: boolean;
-  statements: {
-    used: number;
-    // null means unlimited (admin, or the user has their own Anthropic key on file)
-    limit: number | null;
-  };
+  // True for non-admins with no Anthropic key on file — nothing can be
+  // processed for them until they add one.
+  requiresApiKey: boolean;
 }
 
 export interface StatementSummary {

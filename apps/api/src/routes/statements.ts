@@ -1,17 +1,27 @@
 import { createHash } from "node:crypto";
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { sql } from "../db.js";
 import { putEncrypted, storagePathFor, deleteObject } from "../storage.js";
 import { triggerProcessing } from "../lib/internalClient.js";
 import { sendPushToUser } from "../lib/push.js";
 import { requireAuth } from "../auth.js";
-import { ADMIN_EMAIL, MAX_STATEMENTS_PER_USER } from "../limits.js";
+import { isAdminEmail } from "../limits.js";
 import { getDecryptedAnthropicKey } from "./users.js";
 
 export const statements = new Hono();
 statements.use("*", requireAuth);
 
 const MAX_FILE_BYTES = 25 * 1024 * 1024; // 25MB
+
+function apiKeyRequired(c: Context) {
+  return c.json(
+    {
+      error: "Add your own Anthropic API key to process statements.",
+      code: "API_KEY_REQUIRED",
+    },
+    403
+  );
+}
 
 statements.post("/", async (c) => {
   const userId = c.get("userId");
@@ -38,26 +48,12 @@ statements.post("/", async (c) => {
     `[statements] upload received: user=${userId} file=${file.name} size=${file.size} bank=${bankName ?? "unset"}`
   );
 
-  // Non-admin accounts are capped on distinct statements processed — checked
-  // before any storage write or AI processing, both of which cost real money.
-  // A user who's supplied their own Anthropic API key is exempt: their
-  // processing is billed to them, not the app, so there's nothing to cap.
-  const isAdmin = c.get("userEmail") === ADMIN_EMAIL;
+  // Admins process with the app's own Anthropic key; everyone else must have
+  // supplied their own (billed to them) — checked before any storage write or
+  // AI processing, both of which cost real money.
+  const isAdmin = isAdminEmail(c.get("userEmail"));
   const ownApiKey = isAdmin ? null : await getDecryptedAnthropicKey(userId);
-  if (!isAdmin && !ownApiKey) {
-    const [row] = await sql<{ count: number }[]>`
-      SELECT COUNT(*)::int AS count FROM statements WHERE user_id = ${userId}
-    `;
-    if ((row?.count ?? 0) >= MAX_STATEMENTS_PER_USER) {
-      return c.json(
-        {
-          error: `You've reached the limit of ${MAX_STATEMENTS_PER_USER} bank statements for this account.`,
-          code: "STATEMENT_LIMIT_REACHED",
-        },
-        403
-      );
-    }
-  }
+  if (!isAdmin && !ownApiKey) return apiKeyRequired(c);
 
   const bytes = Buffer.from(await file.arrayBuffer());
   const fileHash = createHash("sha256").update(bytes).digest("hex");
@@ -136,12 +132,15 @@ statements.post("/:id/reprocess", async (c) => {
     return c.json({ error: "Original PDF was purged by retention policy; please re-upload" }, 409);
   }
 
+  const isAdmin = isAdminEmail(c.get("userEmail"));
+  const ownApiKey = isAdmin ? null : await getDecryptedAnthropicKey(userId);
+  if (!isAdmin && !ownApiKey) return apiKeyRequired(c);
+
   await sql`UPDATE statements SET status = 'processing', failure_reason = NULL WHERE id = ${id}`;
   const [job] = await sql<{ id: string }[]>`
     INSERT INTO jobs (statement_id, status) VALUES (${id}, 'pending') RETURNING id
   `;
   if (!job) throw new Error("Failed to create job row");
-  const ownApiKey = await getDecryptedAnthropicKey(userId);
   void runProcessing(id, job.id, password, ownApiKey ?? undefined);
 
   return c.json({ id, status: "processing" });

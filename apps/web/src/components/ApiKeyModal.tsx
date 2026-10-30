@@ -43,15 +43,15 @@ export function ApiKeyModal({
             Use your own Anthropic API key
           </DialogTitle>
           <DialogDescription>
-            Statements and Telegram transactions processed with your own key don't count against
-            your account's usage limit — you're billed directly by Anthropic instead.
+            Spendy uses your own Anthropic key to read statements and Telegram receipts, so
+            you're billed directly by Anthropic for what you process. Add one to get started.
           </DialogDescription>
         </DialogHeader>
 
         {me?.hasOwnApiKey ? (
           <div className="flex flex-col gap-4">
             <p className="rounded-lg border border-moss-500/30 bg-moss-500/10 px-4 py-3 text-sm text-moss-300">
-              A key is on file for this account — processing is unlimited.
+              A key is on file for this account.
             </p>
             <Button
               variant="danger"

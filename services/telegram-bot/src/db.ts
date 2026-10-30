@@ -1,6 +1,6 @@
 import postgres from "postgres";
 import { env } from "./env.js";
-import { ADMIN_EMAIL } from "./limits.js";
+import { isAdminEmail } from "./limits.js";
 import { decryptBuffer } from "./crypto.js";
 
 export const sql = postgres(env.databaseUrl, {
@@ -59,9 +59,9 @@ export async function markLoanFulfilled(loanId: string): Promise<void> {
 export interface UserGateStatus {
   isAdmin: boolean;
   // Decrypted, present only when the user has saved their own Anthropic key
-  // (apps/api's /users/me/anthropic-key) — they're exempt from the Telegram
-  // quota below, and this same key is forwarded to pdf-service so their
-  // processing is billed to them instead of the app.
+  // (apps/api's /users/me/anthropic-key). Non-admins can't process anything
+  // without one; it's forwarded to pdf-service so their processing is billed
+  // to them instead of the app.
   ownApiKey: string | null;
 }
 
@@ -70,17 +70,7 @@ export async function getUserGateStatus(userId: string): Promise<UserGateStatus>
     SELECT email, anthropic_api_key FROM users WHERE id = ${userId}
   `;
   return {
-    isAdmin: row?.email === ADMIN_EMAIL,
+    isAdmin: isAdminEmail(row?.email),
     ownApiKey: row?.anthropicApiKey ? decryptBuffer(row.anthropicApiKey).toString("utf8") : null,
   };
-}
-
-// Only transactions logged through Telegram count toward the Telegram cap —
-// bank-statement transactions are gated separately (by statement count, in
-// apps/api) and shouldn't count against this limit.
-export async function countTelegramTransactions(userId: string): Promise<number> {
-  const [row] = await sql<{ count: number }[]>`
-    SELECT COUNT(*)::int AS count FROM transactions WHERE user_id = ${userId} AND source = 'telegram'
-  `;
-  return row?.count ?? 0;
 }

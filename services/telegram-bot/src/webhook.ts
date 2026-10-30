@@ -5,10 +5,8 @@ import {
   findPendingReminderLoans,
   markLoanFulfilled,
   getUserGateStatus,
-  countTelegramTransactions,
   type PendingLoan,
 } from "./db.js";
-import { MAX_TELEGRAM_TRANSACTIONS_PER_USER } from "./limits.js";
 import { downloadFile, sendMessage, type TelegramUpdate } from "./telegram.js";
 import { putEncrypted, storagePathFor } from "./storage.js";
 import { nextConversationTurn } from "./llm.js";
@@ -34,11 +32,22 @@ async function trySendMessage(chatId: string, text: string): Promise<void> {
   }
 }
 
+const MISSING_KEY_MESSAGE =
+  "Add your own Anthropic API key in the Spendy web app to start logging transactions here.";
+
+// A user who removed their key mid-conversation must not fall back to the
+// app's own key — drop the session rather than process it.
+async function abortForMissingKey(chatId: string): Promise<void> {
+  await deleteSession(chatId);
+  await trySendMessage(chatId, MISSING_KEY_MESSAGE);
+}
+
 // The only path that produces a transaction — triggered the moment the
 // conversational agent itself signals "ready" (or the user explicitly types
 // "done" as a manual override), no separate confirmation step required.
 async function finalizeSession(session: Session): Promise<void> {
   const { isAdmin, ownApiKey } = await getUserGateStatus(session.userId);
+  if (!isAdmin && !ownApiKey) return abortForMissingKey(session.chatId);
   const result = await enqueueTelegramJob({
     userId: session.userId,
     chatId: session.chatId,
@@ -76,20 +85,13 @@ async function handleNewDocument(
     return;
   }
 
-  // Non-admin accounts are capped on transactions logged via Telegram —
-  // checked before downloading the file or starting a capture session. A
-  // user who's supplied their own Anthropic key is exempt: their processing
-  // is billed to them, not the app.
+  // Admins process with the app's own Anthropic key; everyone else must have
+  // supplied their own — checked before downloading the file or starting a
+  // capture session.
   const { isAdmin, ownApiKey } = await getUserGateStatus(userId);
   if (!isAdmin && !ownApiKey) {
-    const count = await countTelegramTransactions(userId);
-    if (count >= MAX_TELEGRAM_TRANSACTIONS_PER_USER) {
-      await trySendMessage(
-        chatId,
-        `You've reached the limit of ${MAX_TELEGRAM_TRANSACTIONS_PER_USER} transactions logged via Telegram for this account. Add your own Anthropic API key in the Spendy web app to keep logging without a limit.`
-      );
-      return;
-    }
+    await trySendMessage(chatId, MISSING_KEY_MESSAGE);
+    return;
   }
   const apiKeyOverride = isAdmin ? undefined : (ownApiKey ?? undefined);
 
@@ -174,6 +176,7 @@ async function handleConversationText(chatId: string, text: string): Promise<voi
   if (!withUserTurn) return;
 
   const { isAdmin, ownApiKey } = await getUserGateStatus(session.userId);
+  if (!isAdmin && !ownApiKey) return abortForMissingKey(chatId);
   const apiKeyOverride = isAdmin ? undefined : (ownApiKey ?? undefined);
   const taxonomy = await getCategories();
   const { message, ready } = await nextConversationTurn(withUserTurn.turns, taxonomy, apiKeyOverride);

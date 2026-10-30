@@ -15,6 +15,7 @@ import { Button } from "./components/ui/Button";
 import { NotificationsBell } from "./components/NotificationsBell";
 import { Popover, PopoverContent, PopoverTrigger } from "./components/ui/Popover";
 import { UploadModal } from "./components/UploadModal";
+import { ApiKeyPrompt } from "./components/ApiKeyPrompt";
 import { UploadModalProvider, useUploadModal } from "./context/UploadModalContext";
 
 const NAV_LINKS = [
@@ -146,6 +147,7 @@ function AppShell() {
             <Route path="/telegram" element={<TelegramLinkPage />} />
           </Routes>
           <UploadModal />
+          <ApiKeyPrompt />
         </SignedIn>
       </main>
     </div>

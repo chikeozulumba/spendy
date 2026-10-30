@@ -27,7 +27,7 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8787";
 export type GetToken = () => Promise<string | null>;
 
 // `code` is a stable, machine-checkable tag the API attaches to some error
-// responses (e.g. "STATEMENT_LIMIT_REACHED") — callers that need to react to
+// responses (e.g. "API_KEY_REQUIRED") — callers that need to react to
 // a specific failure should check this, not parse `message`, which is
 // free-text and can change.
 export class ApiError extends Error {

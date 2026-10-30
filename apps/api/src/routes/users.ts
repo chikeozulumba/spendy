@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { sql } from "../db.js";
 import { requireAuth } from "../auth.js";
 import { encryptBuffer, decryptBuffer } from "../crypto.js";
-import { ADMIN_EMAIL, MAX_STATEMENTS_PER_USER } from "../limits.js";
+import { isAdminEmail } from "../limits.js";
 
 export const users = new Hono();
 users.use("*", requireAuth);
@@ -37,23 +37,20 @@ export async function getDecryptedAnthropicKey(userId: string): Promise<string |
 users.get("/me", async (c) => {
   const userId = c.get("userId");
   const email = c.get("userEmail");
-  const isAdmin = email === ADMIN_EMAIL;
+  const isAdmin = isAdminEmail(email);
 
-  const [hasKeyRow, statementRow] = await Promise.all([
-    sql<{ hasKey: boolean }[]>`SELECT anthropic_api_key IS NOT NULL AS "hasKey" FROM users WHERE id = ${userId}`,
-    sql<{ count: number }[]>`SELECT COUNT(*)::int AS count FROM statements WHERE user_id = ${userId}`,
-  ]);
-  const hasOwnApiKey = hasKeyRow[0]?.hasKey ?? false;
-  const unlimited = isAdmin || hasOwnApiKey;
+  const [row] = await sql<{ hasKey: boolean }[]>`
+    SELECT anthropic_api_key IS NOT NULL AS "hasKey" FROM users WHERE id = ${userId}
+  `;
+  const hasOwnApiKey = row?.hasKey ?? false;
 
   return c.json({
     email,
     isAdmin,
     hasOwnApiKey,
-    statements: {
-      used: statementRow[0]?.count ?? 0,
-      limit: unlimited ? null : MAX_STATEMENTS_PER_USER,
-    },
+    // Non-admins can't process anything on the app's key — the web app uses
+    // this to prompt for one as soon as they sign in.
+    requiresApiKey: !isAdmin && !hasOwnApiKey,
   });
 });
 

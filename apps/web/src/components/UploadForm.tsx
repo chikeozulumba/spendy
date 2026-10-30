@@ -41,11 +41,12 @@ export function UploadForm({ onSuccess }: { onSuccess: (statementId: string) => 
     },
   });
 
-  const limitReached =
-    upload.error instanceof ApiError && upload.error.code === "STATEMENT_LIMIT_REACHED";
   const me = meQuery.data;
-  const remaining =
-    me && me.statements.limit !== null ? Math.max(0, me.statements.limit - me.statements.used) : null;
+  // `me` is the source of truth once loaded (it refreshes after a key is
+  // saved); the upload error only covers the window before it arrives.
+  const keyRequired = me
+    ? me.requiresApiKey
+    : upload.error instanceof ApiError && upload.error.code === "API_KEY_REQUIRED";
 
   return (
     <form
@@ -112,37 +113,24 @@ export function UploadForm({ onSuccess }: { onSuccess: (statementId: string) => 
         />
       )}
 
-      <Button type="submit" disabled={!file || upload.isPending || limitReached} className="mt-1">
+      <Button type="submit" disabled={!file || upload.isPending || keyRequired} className="mt-1">
         {upload.isPending ? "Uploading…" : "Upload"}
       </Button>
 
-      {!me?.isAdmin && !me?.hasOwnApiKey && remaining !== null && (
-        <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-text-600">
-          <span>
-            {remaining} of {me?.statements.limit} statement{me?.statements.limit === 1 ? "" : "s"}{" "}
-            remaining.
-          </span>
-          <button
-            type="button"
-            onClick={() => setApiKeyModalOpen(true)}
-            className="inline-flex items-center gap-1 text-text-400 underline underline-offset-2 hover:text-text-100"
-          >
-            <KeyRound className="size-3" strokeWidth={1.8} />
-            Use your own API key for unlimited processing
-          </button>
-        </p>
-      )}
-
-      {upload.isError && (
-        <div className="flex flex-col items-start gap-2 rounded-lg border border-rust-600 bg-rust-600/10 px-4 py-3 text-sm text-rust-400">
-          <p>{(upload.error as Error).message}</p>
-          {limitReached && (
-            <Button type="button" variant="secondary" onClick={() => setApiKeyModalOpen(true)}>
-              <KeyRound className="size-4" />
-              Add your API key to continue
-            </Button>
-          )}
+      {keyRequired ? (
+        <div className="flex flex-col items-start gap-2 rounded-lg border border-line bg-ink-850 px-4 py-3 text-sm text-text-400">
+          <p>Add your own Anthropic API key to process statements.</p>
+          <Button type="button" variant="secondary" onClick={() => setApiKeyModalOpen(true)}>
+            <KeyRound className="size-4" />
+            Add your API key
+          </Button>
         </div>
+      ) : (
+        upload.isError && (
+          <div className="rounded-lg border border-rust-600 bg-rust-600/10 px-4 py-3 text-sm text-rust-400">
+            <p>{(upload.error as Error).message}</p>
+          </div>
+        )
       )}
 
       <ApiKeyModal open={apiKeyModalOpen} onOpenChange={setApiKeyModalOpen} me={me} />
